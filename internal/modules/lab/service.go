@@ -2,8 +2,10 @@ package lab
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"log/slog"
+	"reflect"
 	"strings"
 	"sync"
 	"time"
@@ -27,12 +29,16 @@ func Scenarios() []Scenario {
 		{"server-health", "Server health", "Text, tool call, progress, result, bound card and a View errors action."},
 		{"streaming-text", "Streaming text", "Deterministic incremental text without external services."},
 		{"tool-error", "Tool error", "An explicit tool failure that remains inspectable and replayable."},
+		{"image-card", "Image card · resource discovery", "An illustrated recommendation linking to official documentation."},
+		{"image-list", "Image list · search results", "Three streaming results with a thumbnail on the left and text on the right."},
+		{"support-form", "Form · support ticket", "Collect details, validate input and persist a local demo ticket."},
+		{"deployment-approval", "Confirmation · staging deployment", "Pause for human approval or rejection before a simulated deployment."},
 	}
 }
 
 type Create struct {
 	Prompt     string `json:"prompt" minLength:"1" maxLength:"2000"`
-	ScenarioID string `json:"scenarioId" enum:"server-health,streaming-text,tool-error"`
+	ScenarioID string `json:"scenarioId" enum:"server-health,streaming-text,tool-error,image-card,image-list,support-form,deployment-approval"`
 }
 type Service struct {
 	repo   *Repository
@@ -122,6 +128,9 @@ func (s *Service) execute(r Run, in Create) {
 			if !ok {
 				return
 			}
+			if m.Kind == "input.required" || m.Kind == "approval.required" {
+				status = "waiting_input"
+			}
 			if m.Kind == "error.occurred" {
 				status = "failed"
 			}
@@ -165,7 +174,7 @@ func (s *Service) Action(ctx context.Context, id string, a action.Envelope) (Run
 	if err != nil {
 		return r, err
 	}
-	result, err := action.Route(a, id, r.Status == "completed" && r.ScenarioID == "server-health")
+	result, err := action.Route(a, id, r.ScenarioID)
 	if err != nil {
 		return r, err
 	}
@@ -174,17 +183,43 @@ func (s *Service) Action(ctx context.Context, id string, a action.Envelope) (Run
 		return r, err
 	}
 	for _, e := range events {
-		if e.Kind == "action.completed" {
-			return r, nil
+		if e.Kind == "action.received" {
+			var previous action.Envelope
+			data, err := json.Marshal(e.Payload)
+			if err != nil {
+				return r, err
+			}
+			if err = json.Unmarshal(data, &previous); err != nil {
+				return r, err
+			}
+			if reflect.DeepEqual(previous, a) {
+				return r, nil
+			}
+			return r, fmt.Errorf("%w: this interaction has already been resolved", fault.ErrConflict)
 		}
 	}
-	view := (&presentation.Presenter{}).Present(result)[0]
-	batch := []event.Message{event.New("action.received", a), result, event.New("presentation.event", view)}
-	for _, message := range a2ui.ActionResult(view) {
-		batch = append(batch, protocolMessage(message))
+	requiredStatus := "waiting_input"
+	if r.ScenarioID == "server-health" {
+		requiredStatus = "completed"
 	}
-
-	if err = s.repo.Append(ctx, id, batch, ""); err != nil {
+	if r.Status != requiredStatus {
+		return r, fmt.Errorf("%w: run is not ready for this action", fault.ErrConflict)
+	}
+	batch := []event.Message{event.New("action.received", a)}
+	batch = append(batch, result.Events...)
+	semantic := &presentation.Presenter{}
+	for _, m := range result.Events {
+		for _, view := range semantic.Present(m) {
+			batch = append(batch, event.New("presentation.event", view))
+			for _, msg := range a2ui.ActionResult(view) {
+				batch = append(batch, protocolMessage(msg))
+			}
+		}
+	}
+	if result.Status != "" {
+		batch = append(batch, event.New("run."+result.Status, map[string]any{}))
+	}
+	if err = s.repo.Append(ctx, id, batch, result.Status); err != nil {
 		return r, err
 	}
 	return s.repo.Get(ctx, id)

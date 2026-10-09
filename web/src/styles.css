@@ -470,3 +470,126 @@ input:focus-visible {
     min-width: 700px;
   }
 }
+
+.scenario-description {
+  font-size: 12px;
+  color: #78817d;
+  margin: 10px 0;
+}
+.resource-card {
+  display: block;
+  border: 1px solid #dce3dd;
+  background: white;
+  border-radius: 10px;
+  overflow: hidden;
+  color: inherit;
+  text-decoration: none;
+}
+.resource-card:hover {
+  border-color: #769e87;
+  box-shadow: 0 3px 12px #28574712;
+}
+.resource-thumbnail {
+  background: #e7eee6;
+  aspect-ratio: 16/10;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+.resource-thumbnail img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.resource-copy {
+  padding: 16px;
+}
+.resource-copy h3,
+.lab-form h3,
+.approval-card h3 {
+  font-size: 16px;
+  font-weight: 600;
+  line-height: 1.4;
+}
+.resource-copy p {
+  font-size: 13px;
+  line-height: 1.6;
+  color: #65746d;
+  margin: 8px 0;
+}
+.resource-copy > span {
+  font-size: 11px;
+  color: #285747;
+}
+.resource-row {
+  display: grid;
+  grid-template-columns: 110px minmax(0, 1fr);
+  align-items: stretch;
+}
+.resource-row .resource-thumbnail {
+  height: 100%;
+  aspect-ratio: auto;
+  min-height: 140px;
+}
+.resource-row .resource-copy {
+  padding: 12px;
+}
+.resource-row h3 {
+  font-size: 14px;
+}
+.resource-row p {
+  font-size: 12px;
+}
+.form-description,
+.approval-card > p:not(.eyebrow) {
+  font-size: 12px;
+  color: #65746d;
+  line-height: 1.7;
+  margin: 10px 0 18px;
+}
+.form-field {
+  margin-bottom: 14px;
+}
+.form-field label {
+  font-size: 12px;
+}
+.form-field input,
+.form-field textarea,
+.form-field select {
+  width: 100%;
+  padding: 9px;
+  border: 1px solid #dce3dd;
+  border-radius: 6px;
+  background: #fff;
+  font-size: 13px;
+}
+.form-field textarea {
+  resize: vertical;
+}
+.lab-form fieldset:disabled {
+  opacity: 0.65;
+}
+.approval-card dl {
+  display: grid;
+  grid-template-columns: 90px 1fr;
+  gap: 10px;
+  font-size: 12px;
+  margin: 16px 0;
+}
+.approval-card dt {
+  color: #78817d;
+}
+.approval-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+.decision-receipt {
+  color: #285747;
+  font-weight: 600;
+}
+.resource-card:focus-visible {
+  outline: 2px solid #769e87;
+  outline-offset: 3px;
+}

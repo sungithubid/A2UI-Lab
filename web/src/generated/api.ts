@@ -97,7 +97,7 @@ export interface components {
             readonly $schema?: string;
             prompt: string;
             /** @enum {string} */
-            scenarioId: "server-health" | "streaming-text" | "tool-error";
+            scenarioId: "server-health" | "streaming-text" | "tool-error" | "image-card" | "image-list" | "support-form" | "deployment-approval";
         };
         Envelope: {
             /**

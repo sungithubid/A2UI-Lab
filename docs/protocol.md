@@ -53,9 +53,36 @@ startup appends run.interrupted to any previously running record.
 {"version":1,"runId":"...","surfaceId":"main","componentId":"view-errors","category":"tool","action":"view_errors","data":{}}
 ```
 
-Only that capability on a completed server-health run is accepted. The path and body
-run IDs must match. The action is idempotent: the first call persists action.received,
-action.completed, presentation.event and an errors surface; retries return the run.
-The result is deterministic fixture data, not a real infrastructure tool.
-Local replay/expand controls never dispatch backend tools. Future agent/navigation
-actions require explicit router capabilities, not arbitrary string dispatch.
+Capabilities are scoped to the persisted scenario and its lifecycle:
+
+| Scenario | Component | Action | Data | Ready state |
+| --- | --- | --- | --- | --- |
+| server-health | view-errors | view_errors | empty object | completed |
+| support-form | ticket-form | submit_ticket | name, email, summary, priority | waiting_input |
+| deployment-approval | deployment-confirmation | decide_deployment | decision: approve or reject | waiting_input |
+
+All are category `tool`. Path/body run IDs and main surface must match. Server-side
+validation rejects missing/extra fields, invalid email, unsupported priority and
+oversized values. Identical retries return the original run; changed retries conflict.
+The action, domain result, presentation, protocol updates and final status commit in
+one transaction. Rejected input does not mutate the log.
+
+`waiting_input` is persisted, not a live goroutine or an expiring network request.
+Startup recovery only interrupts `running` runs. Form submission creates a local
+`ticket.created` event; approval records `approval.resolved` and only then
+`agent.resumed` / mock tool lifecycle. Rejection records `run.cancelled` with no tool
+execution. This is deterministic fixture continuation, not Eino interrupt/resume.
+
+New additive Lab catalog components:
+- LabImageCard: bundled image, alt text, title, description and HTTPS URL; optional
+  row layout for left-image/right-text lists. Native navigation opens a new tab and
+  never submits a server action. Only `/scenario-images/[a-z0-9-]+.svg` images load.
+- LabForm: bounded fields of type text/email/textarea/select and an event action.
+  Draft edits are local; submitted values and disabled state are protocol snapshots.
+- LabApproval: explicit approve/reject choices, operation summary and saved decision.
+
+All three are custom Lab components, not additions to the official Basic Catalog.
+External URL schemes/credentials, malformed form definitions and unsafe field names
+are rejected by the renderer validator. Local illustrations require no external image
+service or CSP relaxation. Replay never submits a form or decision; it restores the
+saved values and disabled state from the event prefix.

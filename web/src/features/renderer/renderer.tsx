@@ -1,3 +1,4 @@
+import { ImageCard, FormCard, ApprovalCard } from './interactive'
 import { Component, type ReactNode } from 'react'
 import { Button } from '@/components/ui/button'
 import { object, type Node, type Surface, type ProtocolState } from '@/lib/a2ui'
@@ -6,7 +7,7 @@ type Props = {
   node: Node
   surface: Surface
   child: (id: string) => ReactNode
-  action: (node: Node) => void
+  action: (node: Node, data?: Record<string, unknown>) => void
   disabled: boolean
 }
 const text = (n: Node, s: Surface) =>
@@ -16,6 +17,9 @@ const text = (n: Node, s: Surface) =>
       ? String(s.data[n.text.path.slice(1)] ?? `[Missing binding: ${n.text.path}]`)
       : ''
 export const registry: Record<string, (p: Props) => ReactNode> = {
+  LabImageCard: ImageCard,
+  LabForm: FormCard,
+  LabApproval: ApprovalCard,
   Text: ({ node, surface }) => <p className="render-text">{text(node, surface)}</p>,
   Column: ({ node, child }) => (
     <div className="render-column">
@@ -63,7 +67,12 @@ export const registry: Record<string, (p: Props) => ReactNode> = {
     </p>
   ),
 }
-export function makeAction(runId: string, surfaceId: string, node: Node): Action {
+export function makeAction(
+  runId: string,
+  surfaceId: string,
+  node: Node,
+  data?: Record<string, unknown>,
+): Action {
   const event = object(node.action) && object(node.action.event) ? node.action.event : {}
   return {
     version: 1,
@@ -72,7 +81,7 @@ export function makeAction(runId: string, surfaceId: string, node: Node): Action
     componentId: node.id,
     category: 'tool',
     action: String(event.name ?? ''),
-    data: object(event.context) ? event.context : {},
+    data: data ?? (object(event.context) ? event.context : {}),
   }
 }
 class Boundary extends Component<{ children: ReactNode }, { failed: boolean }> {
@@ -121,7 +130,7 @@ export function Renderer({
               surface={surface}
               disabled={disabled}
               child={(next) => render(next, [...path, id])}
-              action={(n) => onAction(makeAction(runId, surfaceId, n))}
+              action={(n, data) => onAction(makeAction(runId, surfaceId, n, data))}
             />
           )
         }

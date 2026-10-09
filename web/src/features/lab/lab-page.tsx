@@ -1,3 +1,4 @@
+import type { components } from '@/generated/api'
 import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { FlaskConical, Play } from 'lucide-react'
@@ -7,9 +8,8 @@ import { Experiment } from './experiment'
 export function LabPage() {
   const client = useQueryClient(),
     [id, setID] = useState(''),
-    [scenario, setScenario] = useState<'server-health' | 'streaming-text' | 'tool-error'>(
-      'server-health',
-    ),
+    [scenario, setScenario] =
+      useState<components['schemas']['Create']['scenarioId']>('server-health'),
     [prompt, setPrompt] = useState('Analyze server health')
   const runs = useQuery({
     queryKey: ['runs'],
@@ -66,7 +66,21 @@ export function LabPage() {
             <select
               aria-label="Scenario"
               value={scenario}
-              onChange={(e) => setScenario(e.target.value as typeof scenario)}
+              onChange={(e) => {
+                const next = e.target.value as typeof scenario
+                setScenario(next)
+                setPrompt(
+                  {
+                    'server-health': 'Analyze server health',
+                    'streaming-text': 'Show a streaming answer',
+                    'tool-error': 'Demonstrate a tool failure',
+                    'image-card': 'Recommend an Agent UI resource',
+                    'image-list': 'Find resources for building a local Agent UI lab',
+                    'support-form': 'Help me open a support ticket',
+                    'deployment-approval': 'Prepare a staging deployment for my review',
+                  }[next],
+                )
+              }}
             >
               {(scenarios.data ?? []).map((s) => (
                 <option key={s.id} value={s.id}>
@@ -110,8 +124,14 @@ export function LabPage() {
           </Button>
         )}
       </section>
+      <p className="scenario-description">
+        {scenarios.data?.find((s) => s.id === scenario)?.description}
+      </p>
       {(create.error || runs.error || scenarios.error || remove.error) && (
         <p role="alert" className="issue">
+          <p className="scenario-description">
+            {scenarios.data?.find((s) => s.id === scenario)?.description}
+          </p>
           {(create.error || runs.error || scenarios.error || remove.error)?.message}
         </p>
       )}

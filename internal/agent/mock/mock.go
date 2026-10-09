@@ -33,6 +33,9 @@ func (a Agent) Run(ctx context.Context, req agent.Request) (<-chan event.Message
 		messages = append(messages, event.New("model.text_delta", event.TextDelta{MessageID: "answer", Text: "This deterministic stream works without a model or API key."}))
 	}
 	messages = append(messages, event.New("agent.completed", map[string]any{}))
+	if scenario, ok := interactiveScenario(req.ScenarioID); ok {
+		messages = scenario
+	}
 	out := make(chan event.Message)
 	go func() {
 		defer close(out)

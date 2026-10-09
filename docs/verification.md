@@ -21,3 +21,9 @@ persisted event stream, verifies backup/delete/doctor and embedded SPA behavior.
 
 All database/browser tests use temporary directories. Harness subprocesses ignore
 inherited APP_* and personal .env. A real LLM is never required by the quality gate.
+
+Interactive scenario tests cover linked images, streamed image/text rows, form validation
+and persisted values, approve/reject exclusivity, concurrent duplicate submissions,
+changed retries, replay-disabled controls and pending-state recovery. Binary smoke
+restarts with a pending form and submits it after recovery. Browser tests verify image
+loading and navigation with an intercepted destination, requiring no external network.

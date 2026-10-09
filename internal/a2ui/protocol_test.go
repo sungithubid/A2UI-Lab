@@ -13,7 +13,7 @@ func TestSemanticPresentationProtocolBoundary(t *testing.T) {
 	if err := Validate(adapter.Start()); err != nil {
 		t.Fatal(err)
 	}
-	inputs := []event.Message{event.New("model.text_delta", event.TextDelta{Text: "hello "}), event.New("model.text_delta", event.TextDelta{Text: "world"}), event.New("tool.started", event.ToolStarted{Name: "metrics"}), event.New("agent.progress", event.Progress{Message: "loading", Percent: 50}), event.New("tool.completed", event.ToolCompleted{Name: "metrics", Result: map[string]any{"cpu": 32}})}
+	inputs := []event.Message{event.New("model.text_delta", event.TextDelta{Text: "hello "}), event.New("model.text_delta", event.TextDelta{Text: "world"}), event.New("tool.started", event.ToolStarted{Name: "get_server_metrics"}), event.New("agent.progress", event.Progress{Message: "loading", Percent: 50}), event.New("tool.completed", event.ToolCompleted{Name: "get_server_metrics", Result: map[string]any{"cpu": 32}})}
 	count := 0
 	for _, input := range inputs {
 		for _, m := range semantic.Present(input) {

@@ -25,7 +25,18 @@ func (p *Presenter) Present(e event.Message) []Model {
 		return []Model{{Kind: "text", ID: "answer", Text: p.text}}
 	case "tool.started":
 		return []Model{{Kind: "tool-call", ID: "tool", Text: str("name"), Data: e.Payload}}
+	case "resource.recommended":
+		return []Model{{Kind: "image-card", ID: "recommendation", Data: e.Payload}}
+	case "resource.found":
+		return []Model{{Kind: "image-row", ID: fmt.Sprintf("resource-%v", e.Payload["index"]), Data: e.Payload["resource"].(map[string]any)}}
+	case "input.required":
+		return []Model{{Kind: "form", ID: "ticket-form", Data: e.Payload}}
+	case "approval.required":
+		return []Model{{Kind: "approval", ID: "deployment-confirmation", Data: e.Payload}}
 	case "tool.completed":
+		if str("name") != "get_server_metrics" {
+			return []Model{{Kind: "tool-result", ID: "result", Text: str("name"), Data: e.Payload}}
+		}
 		result, _ := e.Payload["result"].(map[string]any)
 		summary := fmt.Sprintf("CPU %v%% · Memory %v%% · %v recent errors", result["cpu"], result["memory"], result["errors"])
 		return []Model{{Kind: "tool-result", ID: "result", Text: str("name"), Data: e.Payload}, {Kind: "health", ID: "health", Text: "Server health", Data: map[string]any{"summary": summary}}}
@@ -35,7 +46,11 @@ func (p *Presenter) Present(e event.Message) []Model {
 	case "error.occurred":
 		return []Model{{Kind: "error", ID: "error", Text: str("message")}}
 	case "action.completed":
-		return []Model{{Kind: "text", ID: "errors", Text: "Recent errors: connection timeout, retry exhausted, upstream unavailable."}}
+		id := "action-result"
+		if str("action") == "view_errors" {
+			id = "errors"
+		}
+		return []Model{{Kind: "action-result", ID: id, Text: str("message"), Data: e.Payload}}
 	}
 	return nil
 }

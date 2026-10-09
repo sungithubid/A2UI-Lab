@@ -23,8 +23,16 @@ export function Experiment({ id }: { id: string }) {
     events.find((e) => e.seq === selection) ??
     visible.filter((e) => e.kind === 'a2ui.message').at(-1)
   const complete = events.some((e) =>
-    ['run.completed', 'run.failed', 'run.interrupted'].includes(e.kind),
+    [
+      'run.completed',
+      'run.failed',
+      'run.interrupted',
+      'run.waiting_input',
+      'run.cancelled',
+    ].includes(e.kind),
   )
+  const waiting =
+    events.filter((e) => e.kind.startsWith('run.')).at(-1)?.kind === 'run.waiting_input'
   const action = useMutation({
     mutationFn: async (body: Action) =>
       required((await api.POST('/api/runs/{id}/actions', { params: { path: { id } }, body })).data),
@@ -44,7 +52,11 @@ export function Experiment({ id }: { id: string }) {
       <div className="run-bar">
         <span>
           <Radio size={14} />{' '}
-          {cursor === null ? query.connection : 'Replay · persisted events only'}
+          {cursor === null
+            ? waiting
+              ? 'Waiting for your input'
+              : query.connection
+            : 'Replay · persisted events only'}
         </span>
         <span>
           {visible.length} / {events.length} events · {state.issues.length} validation issues

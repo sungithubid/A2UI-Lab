@@ -42,3 +42,9 @@ against server-owned capabilities; rendered buttons cannot select arbitrary tool
 Storage uses the existing SQLite/goose/sqlc infrastructure. Migration 00003 adds
 runs and events. Built-in scenarios are versioned code rather than a redundant
 mutable table. Historical identity and notes tables are intentionally not dropped.
+
+Human input is represented by a persisted waiting_input lifecycle state. Workers
+finish after publishing input.required or approval.required. An allowlisted action
+validates input against the scenario and resolves it in one atomic event batch.
+Pending interactions survive restart; only running executions are recovered as
+interrupted. No new tables or long-lived Agent goroutines are needed. See ADR 0008.

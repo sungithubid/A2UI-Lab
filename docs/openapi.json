@@ -22,7 +22,11 @@
             "enum": [
               "server-health",
               "streaming-text",
-              "tool-error"
+              "tool-error",
+              "image-card",
+              "image-list",
+              "support-form",
+              "deployment-approval"
             ],
             "type": "string"
           }

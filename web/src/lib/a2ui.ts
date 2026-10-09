@@ -1,3 +1,6 @@
+import { object } from './json'
+export { object } from './json'
+import { interactiveError } from './interactive'
 // Protocol types describe the isolated Lab catalog, not duplicated REST DTOs.
 import { orderedPrefix, type LabEvent } from './events'
 export const VERSION = 'v0.9.1'
@@ -9,9 +12,6 @@ export type ProtocolState = {
   issues: { seq: number; message: string }[]
 }
 export const emptyState = (): ProtocolState => ({ surfaces: {}, issues: [] })
-export function object(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null && !Array.isArray(value)
-}
 const safe = (key: string) => !['__proto__', 'constructor', 'prototype'].includes(key)
 export const catalog = [
   'Text',
@@ -23,6 +23,9 @@ export const catalog = [
   'LabToolCall',
   'LabToolResult',
   'LabAlert',
+  'LabImageCard',
+  'LabForm',
+  'LabApproval',
 ]
 export function applyMessage(state: ProtocolState, input: unknown, seq = 0): ProtocolState {
   const fail = (message: string): ProtocolState => ({
@@ -120,6 +123,8 @@ export function applyMessage(state: ProtocolState, input: unknown, seq = 0): Pro
       (typeof raw.percent !== 'number' || raw.percent < 0 || raw.percent > 100)
     )
       return fail('Invalid progress percentage')
+    const interactiveIssue = interactiveError(raw as Node)
+    if (interactiveIssue) return fail(interactiveIssue)
     if (!catalog.includes(raw.component))
       issues.push({ seq, message: `Unknown component: ${raw.component}` })
     components[raw.id] = raw as Node

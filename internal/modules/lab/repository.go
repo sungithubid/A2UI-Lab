@@ -101,7 +101,7 @@ func (r *Repository) Append(ctx context.Context, id string, messages []event.Mes
 	}
 	if status != "" {
 		v.Status = status
-		if status != "running" {
+		if status != "running" && status != "waiting_input" {
 			v.FinishedAt = now()
 		}
 	}

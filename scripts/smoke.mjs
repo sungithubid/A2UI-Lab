@@ -46,15 +46,51 @@ try {
   assert.match(await index.text(), /<div id="root">/)
   assert.equal(index.headers.get('cache-control'), 'no-cache')
   assert.equal((await fetch(h.origin + '/api/missing')).status, 404)
+  const pending = await (
+    await request('/api/runs', 'POST', {
+      prompt: 'Open a support ticket',
+      scenarioId: 'support-form',
+    })
+  ).json()
+  for (let i = 0; i < 100; i++) {
+    if ((await (await request(`/api/runs/${pending.id}`)).json()).status === 'waiting_input') break
+    await new Promise((resolve) => setTimeout(resolve, 50))
+  }
+  assert.equal((await (await request(`/api/runs/${pending.id}`)).json()).status, 'waiting_input')
   h.command(['backup', 'create', '--output', h.directory + '/backup.db'])
   await h.stop()
   await h.start()
   assert.deepEqual(await (await request(base + '/events')).json(), events)
+  const restored = await (await request(`/api/runs/${pending.id}`)).json()
+  assert.equal(restored.status, 'waiting_input')
+  assert.equal(restored.finishedAt, '')
+  const submitted = await (
+    await request(`/api/runs/${pending.id}/actions`, 'POST', {
+      version: 1,
+      runId: pending.id,
+      surfaceId: 'main',
+      componentId: 'ticket-form',
+      category: 'tool',
+      action: 'submit_ticket',
+      data: {
+        name: 'Smoke',
+        email: 'smoke@example.test',
+        summary: 'Restart recovery',
+        priority: 'normal',
+      },
+    })
+  ).json()
+  assert.equal(submitted.status, 'completed')
+  assert.ok(
+    (await (await request(`/api/runs/${pending.id}/events`)).json()).items.some(
+      (e) => e.kind === 'ticket.created',
+    ),
+  )
   await request(base, 'DELETE')
   h.command(['doctor'])
   await h.stop()
   console.log(
-    'PASS binary smoke: fresh boot, Mock run, events, actions, SPA, backup, restart, deterministic persisted replay, delete, doctor',
+    'PASS binary smoke: fresh boot, Mock run, events, actions, SPA, backup, restart, deterministic persisted replay, pending form restored and submitted, delete, doctor',
   )
 } finally {
   await h.cleanup()

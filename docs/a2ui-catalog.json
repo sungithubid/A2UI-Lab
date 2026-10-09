@@ -6,13 +6,490 @@
   "$defs": {
     "anyComponent": {
       "oneOf": [
-        {"type":"object","required":["id","component","text"],"properties":{"id":{"$ref":"https://a2ui.org/specification/v0_9_1/common_types.json#/$defs/ComponentId"},"component":{"const":"Text"},"text":{"oneOf":[{"type":"string"},{"type":"object","required":["path"],"properties":{"path":{"type":"string","pattern":"^/[^/]+$"}},"additionalProperties":false}]}},"additionalProperties":false},
-        {"type":"object","required":["id","component","children"],"properties":{"id":{"$ref":"https://a2ui.org/specification/v0_9_1/common_types.json#/$defs/ComponentId"},"component":{"enum":["Row","Column"]},"children":{"allOf":[{"$ref":"https://a2ui.org/specification/v0_9_1/common_types.json#/$defs/ChildList"},{"type":"array","items":{"type":"string"}}]}},"additionalProperties":false},
-        {"type":"object","required":["id","component","child"],"properties":{"id":{"$ref":"https://a2ui.org/specification/v0_9_1/common_types.json#/$defs/ComponentId"},"component":{"const":"Card"},"child":{"$ref":"https://a2ui.org/specification/v0_9_1/common_types.json#/$defs/ComponentId"}},"additionalProperties":false},
-        {"type":"object","required":["id","component","child","action"],"properties":{"id":{"$ref":"https://a2ui.org/specification/v0_9_1/common_types.json#/$defs/ComponentId"},"component":{"const":"Button"},"child":{"$ref":"https://a2ui.org/specification/v0_9_1/common_types.json#/$defs/ComponentId"},"action":{"type":"object","required":["event"],"properties":{"event":{"type":"object","required":["name","context"],"properties":{"name":{"type":"string"},"context":{"type":"object"}},"additionalProperties":false}},"additionalProperties":false}},"additionalProperties":false},
-        {"type":"object","required":["id","component","text","value"],"properties":{"id":{"$ref":"https://a2ui.org/specification/v0_9_1/common_types.json#/$defs/ComponentId"},"component":{"enum":["LabToolCall","LabToolResult"]},"text":{"type":"string"},"value":{"type":"object"}},"additionalProperties":false},
-        {"type":"object","required":["id","component","text","percent"],"properties":{"id":{"$ref":"https://a2ui.org/specification/v0_9_1/common_types.json#/$defs/ComponentId"},"component":{"const":"LabProgress"},"text":{"type":"string"},"percent":{"type":"number","minimum":0,"maximum":100}},"additionalProperties":false},
-        {"type":"object","required":["id","component","text"],"properties":{"id":{"$ref":"https://a2ui.org/specification/v0_9_1/common_types.json#/$defs/ComponentId"},"component":{"const":"LabAlert"},"text":{"type":"string"}},"additionalProperties":false}
+        {
+          "type": "object",
+          "required": [
+            "id",
+            "component",
+            "text"
+          ],
+          "properties": {
+            "id": {
+              "$ref": "https://a2ui.org/specification/v0_9_1/common_types.json#/$defs/ComponentId"
+            },
+            "component": {
+              "const": "Text"
+            },
+            "text": {
+              "oneOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "object",
+                  "required": [
+                    "path"
+                  ],
+                  "properties": {
+                    "path": {
+                      "type": "string",
+                      "pattern": "^/[^/]+$"
+                    }
+                  },
+                  "additionalProperties": false
+                }
+              ]
+            }
+          },
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "required": [
+            "id",
+            "component",
+            "children"
+          ],
+          "properties": {
+            "id": {
+              "$ref": "https://a2ui.org/specification/v0_9_1/common_types.json#/$defs/ComponentId"
+            },
+            "component": {
+              "enum": [
+                "Row",
+                "Column"
+              ]
+            },
+            "children": {
+              "allOf": [
+                {
+                  "$ref": "https://a2ui.org/specification/v0_9_1/common_types.json#/$defs/ChildList"
+                },
+                {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                }
+              ]
+            }
+          },
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "required": [
+            "id",
+            "component",
+            "child"
+          ],
+          "properties": {
+            "id": {
+              "$ref": "https://a2ui.org/specification/v0_9_1/common_types.json#/$defs/ComponentId"
+            },
+            "component": {
+              "const": "Card"
+            },
+            "child": {
+              "$ref": "https://a2ui.org/specification/v0_9_1/common_types.json#/$defs/ComponentId"
+            }
+          },
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "required": [
+            "id",
+            "component",
+            "child",
+            "action"
+          ],
+          "properties": {
+            "id": {
+              "$ref": "https://a2ui.org/specification/v0_9_1/common_types.json#/$defs/ComponentId"
+            },
+            "component": {
+              "const": "Button"
+            },
+            "child": {
+              "$ref": "https://a2ui.org/specification/v0_9_1/common_types.json#/$defs/ComponentId"
+            },
+            "action": {
+              "type": "object",
+              "required": [
+                "event"
+              ],
+              "properties": {
+                "event": {
+                  "type": "object",
+                  "required": [
+                    "name",
+                    "context"
+                  ],
+                  "properties": {
+                    "name": {
+                      "type": "string"
+                    },
+                    "context": {
+                      "type": "object"
+                    }
+                  },
+                  "additionalProperties": false
+                }
+              },
+              "additionalProperties": false
+            }
+          },
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "required": [
+            "id",
+            "component",
+            "text",
+            "value"
+          ],
+          "properties": {
+            "id": {
+              "$ref": "https://a2ui.org/specification/v0_9_1/common_types.json#/$defs/ComponentId"
+            },
+            "component": {
+              "enum": [
+                "LabToolCall",
+                "LabToolResult"
+              ]
+            },
+            "text": {
+              "type": "string"
+            },
+            "value": {
+              "type": "object"
+            }
+          },
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "required": [
+            "id",
+            "component",
+            "text",
+            "percent"
+          ],
+          "properties": {
+            "id": {
+              "$ref": "https://a2ui.org/specification/v0_9_1/common_types.json#/$defs/ComponentId"
+            },
+            "component": {
+              "const": "LabProgress"
+            },
+            "text": {
+              "type": "string"
+            },
+            "percent": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 100
+            }
+          },
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "required": [
+            "id",
+            "component",
+            "text"
+          ],
+          "properties": {
+            "id": {
+              "$ref": "https://a2ui.org/specification/v0_9_1/common_types.json#/$defs/ComponentId"
+            },
+            "component": {
+              "const": "LabAlert"
+            },
+            "text": {
+              "type": "string"
+            }
+          },
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "required": [
+            "id",
+            "component",
+            "value"
+          ],
+          "properties": {
+            "id": {
+              "$ref": "https://a2ui.org/specification/v0_9_1/common_types.json#/$defs/ComponentId"
+            },
+            "component": {
+              "const": "LabImageCard"
+            },
+            "value": {
+              "type": "object",
+              "required": [
+                "title",
+                "description",
+                "image",
+                "alt",
+                "url"
+              ],
+              "properties": {
+                "title": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "description": {
+                  "type": "string"
+                },
+                "image": {
+                  "type": "string",
+                  "pattern": "^/scenario-images/[a-z0-9-]+\\.svg$"
+                },
+                "alt": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "url": {
+                  "type": "string",
+                  "format": "uri",
+                  "pattern": "^https://"
+                },
+                "layout": {
+                  "const": "row"
+                }
+              },
+              "additionalProperties": false
+            }
+          },
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "required": [
+            "id",
+            "component",
+            "value",
+            "action"
+          ],
+          "properties": {
+            "id": {
+              "$ref": "https://a2ui.org/specification/v0_9_1/common_types.json#/$defs/ComponentId"
+            },
+            "component": {
+              "const": "LabForm"
+            },
+            "value": {
+              "type": "object",
+              "required": [
+                "title",
+                "description",
+                "fields"
+              ],
+              "properties": {
+                "title": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "description": {
+                  "type": "string"
+                },
+                "fields": {
+                  "type": "array",
+                  "minItems": 1,
+                  "maxItems": 12,
+                  "items": {
+                    "type": "object",
+                    "required": [
+                      "name",
+                      "label",
+                      "type",
+                      "required"
+                    ],
+                    "properties": {
+                      "name": {
+                        "type": "string",
+                        "pattern": "^[a-z][a-z0-9_]*$"
+                      },
+                      "label": {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      "type": {
+                        "enum": [
+                          "text",
+                          "email",
+                          "textarea",
+                          "select"
+                        ]
+                      },
+                      "required": {
+                        "type": "boolean"
+                      },
+                      "maxLength": {
+                        "type": "integer",
+                        "minimum": 1,
+                        "maximum": 2000
+                      },
+                      "options": {
+                        "type": "array",
+                        "minItems": 1,
+                        "maxItems": 20,
+                        "items": {
+                          "type": "string",
+                          "minLength": 1
+                        }
+                      }
+                    },
+                    "additionalProperties": false,
+                    "allOf": [
+                      {
+                        "if": {
+                          "properties": {
+                            "type": {
+                              "const": "select"
+                            }
+                          }
+                        },
+                        "then": {
+                          "required": [
+                            "options"
+                          ]
+                        },
+                        "else": {
+                          "required": [
+                            "maxLength"
+                          ]
+                        }
+                      }
+                    ]
+                  }
+                },
+                "values": {
+                  "type": [
+                    "object",
+                    "null"
+                  ],
+                  "additionalProperties": {
+                    "type": "string"
+                  }
+                }
+              },
+              "additionalProperties": false
+            },
+            "action": {
+              "type": "object",
+              "required": [
+                "event"
+              ],
+              "properties": {
+                "event": {
+                  "type": "object",
+                  "required": [
+                    "name",
+                    "context"
+                  ],
+                  "properties": {
+                    "name": {
+                      "type": "string"
+                    },
+                    "context": {
+                      "type": "object"
+                    }
+                  },
+                  "additionalProperties": false
+                }
+              },
+              "additionalProperties": false
+            },
+            "disabled": {
+              "type": "boolean"
+            }
+          },
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "required": [
+            "id",
+            "component",
+            "value",
+            "action"
+          ],
+          "properties": {
+            "id": {
+              "$ref": "https://a2ui.org/specification/v0_9_1/common_types.json#/$defs/ComponentId"
+            },
+            "component": {
+              "const": "LabApproval"
+            },
+            "value": {
+              "type": "object",
+              "required": [
+                "title",
+                "description"
+              ],
+              "properties": {
+                "title": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "description": {
+                  "type": "string"
+                },
+                "operation": {
+                  "type": "string"
+                },
+                "environment": {
+                  "type": "string"
+                },
+                "service": {
+                  "type": "string"
+                },
+                "decision": {
+                  "enum": [
+                    "approve",
+                    "reject"
+                  ]
+                }
+              },
+              "additionalProperties": false
+            },
+            "action": {
+              "type": "object",
+              "required": [
+                "event"
+              ],
+              "properties": {
+                "event": {
+                  "type": "object",
+                  "required": [
+                    "name",
+                    "context"
+                  ],
+                  "properties": {
+                    "name": {
+                      "type": "string"
+                    },
+                    "context": {
+                      "type": "object"
+                    }
+                  },
+                  "additionalProperties": false
+                }
+              },
+              "additionalProperties": false
+            },
+            "disabled": {
+              "type": "boolean"
+            }
+          },
+          "additionalProperties": false
+        }
       ]
     }
   }

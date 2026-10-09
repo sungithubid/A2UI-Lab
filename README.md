@@ -17,10 +17,16 @@ Inspect raw messages and parsed state in Protocol Inspector, and all event categ
 in Timeline. Reset / Step / Play reconstruct the UI from persisted events; Live
 returns to the current run. Run history remains available after restart.
 
-Three built-in scenarios: server health, streaming text and tool failure. Mock output
+Seven built-in scenarios: server health, streaming text, tool failure, linked image
+card, illustrated resource list, support ticket form and deployment confirmation.
+Image illustrations ship with the binary; links open official documentation in a new
+tab. Forms validate name/email/summary/priority and store a demo ticket in the event
+log. Confirmation pauses for approve/reject; only approval records a simulated tool
+execution. Both interactions survive restart in `waiting_input` and become read-only
+after resolution. Identical retries are idempotent; different repeat decisions fail. Mock output
 is canned and independent of the prompt; prompts are recorded as experiment input.
 This first slice uses deterministic presentation only. Eino and real model output,
-approvals, additional scenarios, intent/generative comparison and a raw editor are
+real Agent interrupt/resume, intent/generative comparison and a raw editor are
 future slices, not simulated features in this UI.
 
 ## Build and operate
