@@ -1,0 +1,38 @@
+version: "2"
+sql:
+  - name: auth
+    engine: sqlite
+    schema: internal/platform/database/migrations
+    queries: internal/modules/auth/queries.sql
+    gen:
+      go:
+        package: dbgen
+        out: internal/modules/auth/dbgen
+        sql_package: database/sql
+        emit_empty_slices: true
+        omit_unused_structs: true
+        initialisms: [id, csrf]
+  - name: workspace
+    engine: sqlite
+    schema: internal/platform/database/migrations
+    queries: internal/modules/workspace/queries.sql
+    gen:
+      go:
+        package: dbgen
+        out: internal/modules/workspace/dbgen
+        sql_package: database/sql
+        emit_empty_slices: true
+        omit_unused_structs: true
+        initialisms: [id, csrf]
+  - name: notes
+    engine: sqlite
+    schema: internal/platform/database/migrations
+    queries: internal/modules/notes/queries.sql
+    gen:
+      go:
+        package: dbgen
+        out: internal/modules/notes/dbgen
+        sql_package: database/sql
+        emit_empty_slices: true
+        omit_unused_structs: true
+        initialisms: [id, csrf]

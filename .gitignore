@@ -1,0 +1,17 @@
+/bin/
+/.data/
+/web/node_modules/
+/internal/webui/dist/*
+!/internal/webui/dist/.gitkeep
+/web/coverage/
+/test-results/
+/playwright-report/
+*.log
+.DS_Store
+*.tsbuildinfo
+/.playwright-cli/
+
+# Local environment files may contain deployment secrets.
+.env
+.env.*
+!.env.example
