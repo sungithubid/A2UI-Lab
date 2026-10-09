@@ -1,5 +1,7 @@
 # A2UI Lab
 
+[English](README.md) | [简体中文](README_zh.md)
+
 A local engineering playground for streaming Agent UIs: run deterministic scenarios,
 inspect semantic and protocol events, interact with generated surfaces, and replay
 persisted runs without calling an LLM.
@@ -68,9 +70,9 @@ events and resumes via sequence cursors. Replay reduces stored events without Ag
 execution. The protocol adapter targets the [current A2UI v0.9.1 specification](https://a2ui.org/specification/v0.9.1-a2ui/)
 using a documented Lab catalog subset, not full Basic Catalog compliance.
 
-See [architecture](docs/architecture.md), [development](docs/development.md),
-[protocol subset](docs/protocol.md), [verification](docs/verification.md), and
-[the local Lab ADR](docs/decisions/0007-local-event-lab.md).
+See [architecture](docs/architecture.md), [scenario ladder](docs/scenarios.md),
+[development](docs/development.md), [protocol subset](docs/protocol.md),
+[verification](docs/verification.md), and [the local Lab ADR](docs/decisions/0007-local-event-lab.md).
 
 Migration 00003 adds runs/events. Historical Monoseed identity/notes migrations and
 stored data are retained, but old SaaS APIs, UI and admin commands have been removed.

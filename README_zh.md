@@ -1,5 +1,7 @@
 # A2UI Lab
 
+[English](README.md) | [简体中文](README_zh.md)
+
 本地优先的流式 Agent UI 工程实验室：执行确定性场景，查看语义事件和 A2UI
 协议，操作动态界面，并从 SQLite 事件日志重放整个运行。无需账号或 LLM 密钥。
 
@@ -46,7 +48,7 @@ make verify
 
 架构：Agent → 语义事件 → Presentation → A2UI → Renderer → Action Router。
 使用当前生产版 A2UI v0.9.1 的明确子集和独立 Lab catalog，不宣称完整 Basic Catalog 支持。
-详情见 [架构](docs/architecture.md)、[开发](docs/development.md)、[协议子集](docs/protocol.md)。
+详情见 [架构](docs/architecture.md)、[场景与演进阶梯](docs/scenarios.md)、[开发](docs/development.md)、[协议子集](docs/protocol.md)。
 
 迁移 00003 新增 runs/events。旧 Monoseed 迁移和数据库中的旧数据保留，旧账号、
 Workspace、Notes 页面/API 和 admin CLI 已移除。升级旧库前请备份；新默认目录不会自动导入旧目录，
