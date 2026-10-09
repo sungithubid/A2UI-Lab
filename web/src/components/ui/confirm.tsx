@@ -1,4 +1,3 @@
-import { useTranslation } from 'react-i18next'
 import * as AlertDialog from '@radix-ui/react-alert-dialog'
 import { Button } from './button'
 export function Confirm({
@@ -9,6 +8,7 @@ export function Confirm({
   title,
   description,
   confirmLabel,
+  cancelLabel = 'Cancel',
   error,
 }: {
   open: boolean
@@ -18,9 +18,9 @@ export function Confirm({
   title: string
   description: string
   confirmLabel: string
+  cancelLabel?: string
   error?: string
 }) {
-  const { t } = useTranslation()
   return (
     <AlertDialog.Root
       open={open}
@@ -43,11 +43,11 @@ export function Confirm({
           <div className="mt-6 flex justify-end gap-2">
             <AlertDialog.Cancel asChild>
               <Button variant="outline" disabled={pending}>
-                {t('Cancel')}
+                {cancelLabel}
               </Button>
             </AlertDialog.Cancel>
             <Button variant="destructive" disabled={pending} onClick={onConfirm}>
-              {pending ? t('Deleting\u2026') : confirmLabel}
+              {pending ? 'Deleting\u2026' : confirmLabel}
             </Button>
           </div>
         </AlertDialog.Content>

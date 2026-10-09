@@ -28,6 +28,8 @@ make dev
 
 ### 2. Basic Walkthrough
 
+![A2UI Lab Overview](docs/images/overview.png)
+
 1. **Select a Scenario**: Choose a scenario from the dropdown (e.g. **Server health**).
 2. **Start a Run**: Enter a prompt and click **New run**. The Mock Agent progressively streams text, tool invocations, and progress, while the presentation layer renders a bound status card.
 3. **Interact**: Click **View errors** to send a normalized, validated action back to the server.

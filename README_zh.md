@@ -28,6 +28,8 @@ make dev
 
 ### 2. 基础操作流程
 
+![A2UI Lab 控制台全景](docs/images/overview.png)
+
 1. **选择场景**：在顶部下拉菜单中选择演示场景（例如 **Server health**）。
 2. **发起运行**：输入提示词并点击 **New run**。Mock Agent 逐步输出流式文本、工具调用与执行进度，Presentation 层生成绑定的状态卡片。
 3. **交互与动作**：点击卡片中的 **View errors**，将标准意图动作（Action）提交至服务端受控路由处理。
