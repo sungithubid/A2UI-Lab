@@ -27,3 +27,9 @@ and persisted values, approve/reject exclusivity, concurrent duplicate submissio
 changed retries, replay-disabled controls and pending-state recovery. Binary smoke
 restarts with a pending form and submits it after recovery. Browser tests verify image
 loading and navigation with an intercepted destination, requiring no external network.
+
+Bulk-deletion tests require explicit confirmation, drain active workers, remove more
+than one history page and cascade events, then verify that new runs still work.
+Browser tests cover toolbar alignment, modal cancellation and recoverable errors,
+cleared history after reload, and Inspector resizing by pointer/keyboard with saved
+proportions, reset and mobile layout.

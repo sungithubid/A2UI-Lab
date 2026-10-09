@@ -72,6 +72,18 @@ func (q *Queries) CreateRun(ctx context.Context, arg CreateRunParams) (Run, erro
 	return i, err
 }
 
+const deleteAllRuns = `-- name: DeleteAllRuns :execrows
+DELETE FROM runs
+`
+
+func (q *Queries) DeleteAllRuns(ctx context.Context) (int64, error) {
+	result, err := q.db.ExecContext(ctx, deleteAllRuns)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
+}
+
 const deleteRun = `-- name: DeleteRun :execrows
 DELETE FROM runs WHERE id=?1 AND status!='running'
 `

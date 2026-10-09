@@ -14,7 +14,8 @@ export interface paths {
         get: operations["list-runs"];
         put?: never;
         post: operations["create-run"];
-        delete?: never;
+        /** Stop and delete all runs and their events */
+        delete: operations["delete-all-runs"];
         options?: never;
         head?: never;
         patch?: never;
@@ -98,6 +99,25 @@ export interface components {
             prompt: string;
             /** @enum {string} */
             scenarioId: "server-health" | "streaming-text" | "tool-error" | "image-card" | "image-list" | "support-form" | "deployment-approval";
+        };
+        DeleteAllInputBody: {
+            /**
+             * Format: uri
+             * @description A URL to the JSON Schema for this object.
+             * @example https://example.com/api/schemas/DeleteAllInputBody.json
+             */
+            readonly $schema?: string;
+            confirm: boolean;
+        };
+        DeleteAllResult: {
+            /**
+             * Format: uri
+             * @description A URL to the JSON Schema for this object.
+             * @example https://example.com/api/schemas/DeleteAllResult.json
+             */
+            readonly $schema?: string;
+            /** Format: int64 */
+            deleted: number;
         };
         Envelope: {
             /**
@@ -287,6 +307,39 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["Run"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ErrorModel"];
+                };
+            };
+        };
+    };
+    "delete-all-runs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DeleteAllInputBody"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DeleteAllResult"];
                 };
             };
             /** @description Error */

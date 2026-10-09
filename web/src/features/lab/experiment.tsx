@@ -1,12 +1,12 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { Play, RotateCcw, StepForward, Radio, Braces } from 'lucide-react'
+import { Play, RotateCcw, StepForward, Radio } from 'lucide-react'
 import { api, required } from '@/lib/api'
-import { describe, replay } from '@/lib/a2ui'
+import { replay } from '@/lib/a2ui'
 import type { Action } from '@/lib/events'
 import { Button } from '@/components/ui/button'
 import { Renderer } from '@/features/renderer/renderer'
-import { Inspector } from '@/features/inspector/inspector'
+import { ProtocolPanel } from '@/features/inspector/protocol-panel'
 import { useEvents } from './use-events'
 import { TimelineRow } from '@/features/timeline/timeline-row'
 export function Experiment({ id }: { id: string }) {
@@ -164,28 +164,12 @@ export function Experiment({ id }: { id: string }) {
             />
           </div>
         </section>
-        <section className="panel">
-          <div className="panel-title">
-            <h2>Protocol Inspector</h2>
-            <Braces size={16} />
-          </div>
-          <div className="protocol-list">
-            {visible
-              .filter((e) => e.kind === 'a2ui.message')
-              .map((e) => (
-                <button
-                  className={selected?.seq === e.seq ? 'selected' : ''}
-                  key={e.seq}
-                  onClick={() => setSelection(e.seq)}
-                >
-                  #{e.seq} <span>{describe(e.payload).type}</span>
-                </button>
-              ))}
-          </div>
-          <div className="panel-scroll inspector">
-            <Inspector event={selected} events={events} />
-          </div>
-        </section>
+        <ProtocolPanel
+          visible={visible}
+          events={events}
+          selected={selected}
+          onSelect={setSelection}
+        />
       </div>
       <section className="timeline">
         <div className="panel-title">

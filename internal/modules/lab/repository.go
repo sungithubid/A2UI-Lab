@@ -135,3 +135,6 @@ func (r *Repository) Delete(ctx context.Context, id string) error {
 	}
 	return nil
 }
+
+// DeleteAll atomically deletes every run; the existing foreign key cascades events.
+func (r *Repository) DeleteAll(ctx context.Context) (int64, error) { return r.q.DeleteAllRuns(ctx) }

@@ -237,3 +237,30 @@ func TestMaintenanceOpenDoesNotInterruptRuns(t *testing.T) {
 		t.Fatalf("maintenance changed active run: %+v %v", got, err)
 	}
 }
+
+func TestDeleteAllRunsRequiresConfirmation(t *testing.T) {
+	a := testApp(t)
+	w := request(t, a, "POST", "/api/runs", lab.Create{Prompt: "Active run", ScenarioID: "server-health"}, 201)
+	var run lab.Run
+	if err := json.Unmarshal(w.Body.Bytes(), &run); err != nil {
+		t.Fatal(err)
+	}
+	request(t, a, "DELETE", "/api/runs", map[string]any{}, 422)
+	request(t, a, "DELETE", "/api/runs", map[string]any{"confirm": false}, 422)
+	request(t, a, "GET", "/api/runs/"+run.ID, nil, 200)
+	w = request(t, a, "DELETE", "/api/runs", map[string]any{"confirm": true}, 200)
+	var result lab.DeleteAllResult
+	if err := json.Unmarshal(w.Body.Bytes(), &result); err != nil || result.Deleted != 1 {
+		t.Fatal("incorrect deletion result", result, err)
+	}
+	request(t, a, "GET", "/api/runs/"+run.ID, nil, 404)
+	request(t, a, "GET", "/api/runs/"+run.ID+"/events", nil, 404)
+	w = request(t, a, "GET", "/api/runs", nil, 200)
+	var history struct {
+		Items []lab.Run `json:"items"`
+	}
+	if err := json.Unmarshal(w.Body.Bytes(), &history); err != nil || len(history.Items) != 0 {
+		t.Fatal("history not empty", history, err)
+	}
+	request(t, a, "POST", "/api/runs", lab.Create{Prompt: "Next run", ScenarioID: "streaming-text"}, 201)
+}

@@ -19,6 +19,12 @@ import (
 type ItemInput struct {
 	ID string `path:"id"`
 }
+type DeleteAllInput struct {
+	Body struct {
+		Confirm bool `json:"confirm"`
+	}
+}
+type DeleteAllOutput struct{ Body DeleteAllResult }
 type RunOutput struct{ Body Run }
 type CreateInput struct{ Body Create }
 type ActionInput struct {
@@ -49,6 +55,10 @@ type ScenariosOutput struct {
 }
 
 func Register(api huma.API, s *Service) {
+	huma.Register(api, huma.Operation{OperationID: "delete-all-runs", Method: "DELETE", Path: "/api/runs", MaxBodyBytes: 1024, Summary: "Stop and delete all runs and their events"}, func(ctx context.Context, in *DeleteAllInput) (*DeleteAllOutput, error) {
+		result, err := s.DeleteAll(ctx, in.Body.Confirm)
+		return &DeleteAllOutput{Body: result}, httpx.Error(err)
+	})
 	huma.Register(api, huma.Operation{OperationID: "create-run", Method: "POST", Path: "/api/runs", DefaultStatus: 201, MaxBodyBytes: 8192}, func(ctx context.Context, in *CreateInput) (*RunOutput, error) {
 		r, e := s.Create(ctx, in.Body)
 		return &RunOutput{Body: r}, httpx.Error(e)

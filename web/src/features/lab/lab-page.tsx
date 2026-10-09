@@ -1,3 +1,4 @@
+import { Confirm } from '@/components/ui/confirm'
 import type { components } from '@/generated/api'
 import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
@@ -8,6 +9,7 @@ import { Experiment } from './experiment'
 export function LabPage() {
   const client = useQueryClient(),
     [id, setID] = useState(''),
+    [confirmAll, setConfirmAll] = useState(false),
     [scenario, setScenario] =
       useState<components['schemas']['Create']['scenarioId']>('server-health'),
     [prompt, setPrompt] = useState('Analyze server health')
@@ -38,6 +40,18 @@ export function LabPage() {
       void client.invalidateQueries({ queryKey: ['runs'] })
     },
   })
+  const removeAll = useMutation({
+    mutationFn: async () =>
+      required((await api.DELETE('/api/runs', { body: { confirm: true } })).data),
+    onSuccess: () => {
+      setID('')
+      setConfirmAll(false)
+      client.setQueryData(['runs'], [])
+      client.removeQueries({ queryKey: ['events'] })
+      void client.invalidateQueries({ queryKey: ['runs'] })
+    },
+  })
+  const busy = create.isPending || remove.isPending || removeAll.isPending
   return (
     <main className="lab-shell">
       <header className="lab-header">
@@ -98,14 +112,19 @@ export function LabPage() {
               required
             />
           </label>
-          <Button type="submit" disabled={create.isPending || !scenarios.data}>
+          <Button type="submit" disabled={busy || !scenarios.data}>
             <Play />
             {create.isPending ? 'Starting…' : 'New run'}
           </Button>
         </form>
         <label>
           Run history
-          <select aria-label="Run history" value={id} onChange={(e) => setID(e.target.value)}>
+          <select
+            aria-label="Run history"
+            value={id}
+            disabled={busy}
+            onChange={(e) => setID(e.target.value)}
+          >
             <option value="">Choose a persisted run</option>
             {runs.data?.map((r) => (
               <option key={r.id} value={r.id}>
@@ -114,24 +133,42 @@ export function LabPage() {
             ))}
           </select>
         </label>
-        {id && (
+        <div className="run-delete-actions">
           <Button
             variant="ghost"
             onClick={() => remove.mutate()}
-            disabled={remove.isPending || runs.data?.find((r) => r.id === id)?.status === 'running'}
+            disabled={!id || busy || runs.data?.find((r) => r.id === id)?.status === 'running'}
           >
             Delete run
           </Button>
-        )}
+          <Button
+            variant="outline"
+            className="text-destructive"
+            disabled={busy || !runs.data?.length}
+            onClick={() => {
+              removeAll.reset()
+              setConfirmAll(true)
+            }}
+          >
+            Delete all runs
+          </Button>
+        </div>
+        <Confirm
+          open={confirmAll}
+          onOpenChange={setConfirmAll}
+          onConfirm={() => removeAll.mutate()}
+          pending={removeAll.isPending}
+          title="Delete all runs?"
+          confirmLabel="Delete all runs"
+          description="This will stop active runs and permanently delete every run and its event history, including pending forms and approvals. This cannot be undone."
+          error={removeAll.error?.message}
+        />
       </section>
       <p className="scenario-description">
         {scenarios.data?.find((s) => s.id === scenario)?.description}
       </p>
       {(create.error || runs.error || scenarios.error || remove.error) && (
         <p role="alert" className="issue">
-          <p className="scenario-description">
-            {scenarios.data?.find((s) => s.id === scenario)?.description}
-          </p>
           {(create.error || runs.error || scenarios.error || remove.error)?.message}
         </p>
       )}

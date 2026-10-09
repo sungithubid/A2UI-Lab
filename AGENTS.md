@@ -32,7 +32,8 @@ SaaS migrations/data are retained; do not modify already applied migrations.
 
 Add numbered goose Up/Down migrations; document destructive Down paths. Preserve
 single-connection SQLite and DSN pragmas. Use CLI backup create, never copy a live WAL
-file. Events are append-only except explicit deletion of a terminal run. Allocate
+file. Events are append-only except explicit run deletion. Single deletion rejects
+running records; confirmed bulk deletion must cancel/drain workers before purging. Allocate
 sequence numbers and update status in the same transaction. Read events by run_id.
 
 SQL belongs in queries.sql with sqlc.arg named parameters. Use make sqlc; the pinned

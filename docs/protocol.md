@@ -26,7 +26,12 @@ same stored prefix and displayed with the incoming event. No HTML/code is execut
 - POST `/api/runs`: `{prompt, scenarioId}` → Run (201), starts bounded mock execution.
 - GET `/api/runs?offset=0`: up to 100 runs, newest first.
 - GET `/api/runs/{id}`: run metadata/status and lastSeq.
-- DELETE `/api/runs/{id}`: delete a terminal run and cascade its events (204).
+- DELETE `/api/runs/{id}`: delete a non-running run and cascade its events (204).
+- DELETE `/api/runs`: `{confirm: true}` → `{deleted: number}` (200). Explicit
+  confirmation is required. Cancels and drains active workers, then atomically
+  deletes every run and its events, including waiting interactions and paginated
+  history. Creates/actions are serialized with deletion; no late worker writes
+  can recreate history. Empty history returns zero; new runs remain available.
 - GET `/api/runs/{id}/events?after=0`: up to 1000 ordered events for replay.
 - GET `/api/scenarios`: built-in scenario metadata.
 - POST `/api/runs/{id}/actions`: normalized envelope → updated Run.

@@ -17,6 +17,13 @@ Inspect raw messages and parsed state in Protocol Inspector, and all event categ
 in Timeline. Reset / Step / Play reconstruct the UI from persisted events; Live
 returns to the current run. Run history remains available after restart.
 
+**Delete run** removes the selected non-running run. **Delete all runs** requires
+confirmation, stops active runs and clears all runs and their events, including
+pending forms/approvals and history beyond the visible page. Drag the horizontal
+divider in Protocol Inspector to resize its event list and details. Up/Down adjusts
+the focused divider, Home/End selects its limits, and double-click restores the
+default. The split is remembered in this browser.
+
 Seven built-in scenarios: server health, streaming text, tool failure, linked image
 card, illustrated resource list, support ticket form and deployment confirmation.
 Image illustrations ship with the binary; links open official documentation in a new

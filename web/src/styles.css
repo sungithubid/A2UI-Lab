@@ -109,6 +109,7 @@
   color: #285747;
 }
 .experiment-bar {
+  align-items: flex-end;
   border: 1px solid #dce3dd;
   padding: 16px;
   background: white;
@@ -116,7 +117,9 @@
   flex-wrap: wrap;
 }
 .experiment-bar form {
-  flex: 1;
+  flex: 1 1 520px;
+  min-width: 0;
+  align-items: flex-end;
 }
 .experiment-bar label {
   font-size: 11px;
@@ -141,7 +144,18 @@
   align-self: flex-end;
 }
 .experiment-bar > label {
-  max-width: 260px;
+  width: 260px;
+  max-width: 100%;
+}
+.experiment-bar input,
+.experiment-bar select {
+  height: 40px;
+}
+.run-delete-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
 }
 .run-bar {
   justify-content: space-between;
@@ -170,6 +184,7 @@
   height: 590px;
 }
 .panel-title {
+  flex-shrink: 0;
   padding: 14px 16px;
   justify-content: space-between;
   border-bottom: 1px solid #e5e9e5;
@@ -252,7 +267,7 @@
   border: 1px solid #e5e9e5;
 }
 .protocol-list {
-  max-height: 150px;
+  min-height: 0;
   overflow: auto;
   border-bottom: 1px solid #e5e9e5;
 }
@@ -592,4 +607,52 @@ input:focus-visible {
 .resource-card:focus-visible {
   outline: 2px solid #769e87;
   outline-offset: 3px;
+}
+
+.inspector-split {
+  display: grid;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+.inspector-split > .inspector {
+  min-height: 0;
+  overflow: auto;
+}
+.inspector-resizer {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: row-resize;
+  touch-action: none;
+  user-select: none;
+  background: #f3f6f2;
+  border-block: 1px solid #e0e7de;
+}
+.inspector-resizer > span {
+  width: 36px;
+  height: 3px;
+  border-radius: 2px;
+  background: #adbcae;
+  pointer-events: none;
+}
+.inspector-resizer:hover,
+.inspector-resizer:focus-visible {
+  background: #e0eadf;
+  outline: 2px solid #769e87;
+  outline-offset: -2px;
+}
+.inspector-resizer:active {
+  background: #d3e3d1;
+}
+@media (max-width: 650px) {
+  .experiment-bar form {
+    flex-basis: 100%;
+  }
+  .experiment-bar > label {
+    width: 100%;
+  }
+  .run-delete-actions {
+    width: 100%;
+  }
 }

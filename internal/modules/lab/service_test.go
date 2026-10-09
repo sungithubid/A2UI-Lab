@@ -136,3 +136,57 @@ func TestServiceValidationFailureAndCancellation(t *testing.T) {
 		t.Fatal("closed runtime accepted run")
 	}
 }
+
+func TestDeleteAllDrainsWorkersAndDeletesBeyondHistoryPage(t *testing.T) {
+	r, s := fixture(t)
+	ctx := context.Background()
+	s.agent = mock.Agent{Delay: time.Hour}
+	for i := 0; i < 105; i++ {
+		run, err := r.Create(ctx, "Persisted history", "support-form", "v0.9.1")
+		if err != nil {
+			t.Fatal(err)
+		}
+		status := "completed"
+		if i%2 == 0 {
+			status = "waiting_input"
+		}
+		if err := r.Append(ctx, run.ID, []event.Message{event.New("run."+status, map[string]any{})}, status); err != nil {
+			t.Fatal(err)
+		}
+	}
+	run, err := s.Create(ctx, Create{Prompt: "Active worker", ScenarioID: "server-health"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := s.DeleteAll(ctx, false); !errors.Is(err, fault.ErrInvalid) {
+		t.Fatal("unconfirmed deletion accepted", err)
+	}
+	cancelled, cancel := context.WithCancel(ctx)
+	cancel()
+	if _, err := s.DeleteAll(cancelled, true); !errors.Is(err, context.Canceled) {
+		t.Fatal("cancelled request accepted", err)
+	}
+	if current, err := s.Get(ctx, run.ID); err != nil || current.Status != "running" {
+		t.Fatal("rejected deletion changed worker", current, err)
+	}
+	deadline, stop := context.WithTimeout(ctx, 3*time.Second)
+	defer stop()
+	result, err := s.DeleteAll(deadline, true)
+	if err != nil || result.Deleted != 106 {
+		t.Fatal("bulk deletion missed runs", result, err)
+	}
+	s.wg.Wait()
+	var runs, events int
+	if err := r.db.QueryRow("SELECT (SELECT count(*) FROM runs), (SELECT count(*) FROM events)").Scan(&runs, &events); err != nil || runs != 0 || events != 0 {
+		t.Fatal("runs/events remain after workers finished", runs, events, err)
+	}
+	if _, err := s.Events(ctx, run.ID, 0); !errors.Is(err, fault.ErrNotFound) {
+		t.Fatal("deleted stream is still readable", err)
+	}
+	if result, err := s.DeleteAll(ctx, true); err != nil || result.Deleted != 0 {
+		t.Fatal("empty deletion failed", result, err)
+	}
+	if _, err := s.Create(ctx, Create{Prompt: "After clearing history", ScenarioID: "streaming-text"}); err != nil {
+		t.Fatal("runtime no longer accepts runs", err)
+	}
+}

@@ -16,3 +16,6 @@ UPDATE runs SET last_seq=sqlc.arg(last_seq),status=sqlc.arg(status),finished_at=
 SELECT * FROM events WHERE run_id=sqlc.arg(run_id) AND seq>sqlc.arg(after_seq) ORDER BY seq LIMIT sqlc.arg(page_size);
 -- name: DeleteRun :execrows
 DELETE FROM runs WHERE id=sqlc.arg(id) AND status!='running';
+
+-- name: DeleteAllRuns :execrows
+DELETE FROM runs;

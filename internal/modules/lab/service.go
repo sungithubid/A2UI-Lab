@@ -40,21 +40,27 @@ type Create struct {
 	Prompt     string `json:"prompt" minLength:"1" maxLength:"2000"`
 	ScenarioID string `json:"scenarioId" enum:"server-health,streaming-text,tool-error,image-card,image-list,support-form,deployment-approval"`
 }
-type Service struct {
-	repo   *Repository
-	agent  agent.Agent
-	ctx    context.Context
+type worker struct {
 	cancel context.CancelFunc
-	wg     sync.WaitGroup
-	mu     sync.Mutex
-	closed bool
-	active int
-	log    *slog.Logger
+	done   chan struct{}
+}
+
+type Service struct {
+	workers map[string]*worker
+	repo    *Repository
+	agent   agent.Agent
+	ctx     context.Context
+	cancel  context.CancelFunc
+	wg      sync.WaitGroup
+	mu      sync.Mutex
+	closed  bool
+	active  int
+	log     *slog.Logger
 }
 
 func NewService(repo *Repository, a agent.Agent, log *slog.Logger) *Service {
 	ctx, cancel := context.WithCancel(context.Background())
-	return &Service{repo: repo, agent: a, ctx: ctx, cancel: cancel, log: log}
+	return &Service{repo: repo, agent: a, ctx: ctx, cancel: cancel, log: log, workers: map[string]*worker{}}
 }
 func (s *Service) Close() { s.mu.Lock(); s.closed = true; s.cancel(); s.mu.Unlock(); s.wg.Wait() }
 func (s *Service) Create(ctx context.Context, in Create) (Run, error) {
@@ -83,7 +89,23 @@ func (s *Service) Create(ctx context.Context, in Create) (Run, error) {
 	}
 	s.wg.Add(1)
 	s.active++
-	go func() { defer s.wg.Done(); defer func() { s.mu.Lock(); s.active--; s.mu.Unlock() }(); s.execute(r, in) }()
+	workerCtx, cancel := context.WithCancel(s.ctx)
+	w := &worker{cancel: cancel, done: make(chan struct{})}
+	s.workers[r.ID] = w
+	go func() {
+		defer s.wg.Done()
+		defer func() {
+			cancel()
+			// Signal after the final event write, before taking mu: bulk deletion holds
+			// mu while waiting so creates/actions cannot race with the purge.
+			close(w.done)
+			s.mu.Lock()
+			delete(s.workers, r.ID)
+			s.active--
+			s.mu.Unlock()
+		}()
+		s.execute(workerCtx, r, in)
+	}()
 	return s.repo.Get(ctx, r.ID)
 }
 func protocolMessage(m a2ui.Message) event.Message {
@@ -92,8 +114,8 @@ func protocolMessage(m a2ui.Message) event.Message {
 	}
 	return event.New("a2ui.message", m)
 }
-func (s *Service) execute(r Run, in Create) {
-	ctx, cancel := context.WithTimeout(s.ctx, 20*time.Second)
+func (s *Service) execute(parent context.Context, r Run, in Create) {
+	ctx, cancel := context.WithTimeout(parent, 20*time.Second)
 	defer cancel()
 	status := "completed"
 	defer func() {
@@ -223,4 +245,31 @@ func (s *Service) Action(ctx context.Context, id string, a action.Envelope) (Run
 		return r, err
 	}
 	return s.repo.Get(ctx, id)
+}
+
+type DeleteAllResult struct {
+	Deleted int64 `json:"deleted"`
+}
+
+func (s *Service) DeleteAll(ctx context.Context, confirmed bool) (DeleteAllResult, error) {
+	if !confirmed {
+		return DeleteAllResult{}, fmt.Errorf("%w: explicit confirmation is required", fault.ErrInvalid)
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if err := ctx.Err(); err != nil {
+		return DeleteAllResult{}, err
+	}
+	for _, w := range s.workers {
+		w.cancel()
+	}
+	for _, w := range s.workers {
+		select {
+		case <-w.done:
+		case <-ctx.Done():
+			return DeleteAllResult{}, ctx.Err()
+		}
+	}
+	deleted, err := s.repo.DeleteAll(ctx)
+	return DeleteAllResult{Deleted: deleted}, err
 }
