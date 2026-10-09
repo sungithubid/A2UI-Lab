@@ -22,12 +22,12 @@ func TestLoadDefaultsAndOverrides(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if c.Env != "development" || c.HTTP.RequestTimeout != 30*time.Second || c.HTTP.WriteTimeout != 35*time.Second || c.SessionTTL != 168*time.Hour || !filepath.IsAbs(c.DataDir) {
+	if c.Env != "development" || c.HTTP.RequestTimeout != 30*time.Second || c.HTTP.WriteTimeout != 35*time.Second || !filepath.IsAbs(c.DataDir) {
 		t.Fatalf("unexpected defaults: %+v", c)
 	}
 	overrides := map[string]string{
 		"APP_ENV": "test", "APP_ADDR": "127.0.0.1:9090", "APP_DATA_DIR": t.TempDir(), "APP_ORIGIN": "http://localhost:9090",
-		"APP_COOKIE_SECURE": "true", "APP_SESSION_TTL": "12h", "APP_LOG_LEVEL": "debug", "APP_LOG_FORMAT": "text",
+		"APP_LOG_LEVEL": "debug", "APP_LOG_FORMAT": "text",
 		"APP_HTTP_READ_HEADER_TIMEOUT": "500ms", "APP_HTTP_READ_TIMEOUT": "7s", "APP_HTTP_REQUEST_TIMEOUT": "20s",
 		"APP_HTTP_WRITE_TIMEOUT": "25s", "APP_HTTP_IDLE_TIMEOUT": "2m", "APP_HTTP_SHUTDOWN_TIMEOUT": "3s",
 		"APP_HTTP_HEALTH_TIMEOUT": "1s", "APP_HTTP_MAX_HEADER_BYTES": "8192", "APP_HTTP_MAX_BODY_BYTES": "4096",
@@ -116,7 +116,7 @@ func TestInvalidSettingsFailWithVariableName(t *testing.T) {
 	for _, tc := range []struct{ key, value string }{
 		{"APP_ENV", "staging"}, {"APP_LOG_LEVEL", "verbose"}, {"APP_LOG_FORMAT", "xml"},
 		{"APP_DATA_DIR", "relative"}, {"APP_ADDR", "localhost:not-a-port"}, {"APP_ADDR", "localhost:70000"},
-		{"APP_COOKIE_SECURE", "yes"}, {"APP_SESSION_TTL", "7d"}, {"APP_SESSION_TTL", "0s"},
+		{"APP_ADDR", "0.0.0.0:8080"},
 		{"APP_HTTP_REQUEST_TIMEOUT", "forever"}, {"APP_HTTP_READ_TIMEOUT", "-1s"}, {"APP_HTTP_IDLE_TIMEOUT", "0s"},
 		{"APP_HTTP_READ_TIMEOUT", "1s"}, {"APP_HTTP_WRITE_TIMEOUT", "30s"}, {"APP_HTTP_HEALTH_TIMEOUT", "31s"},
 		{"APP_HTTP_MAX_HEADER_BYTES", "1MB"}, {"APP_HTTP_MAX_BODY_BYTES", "-1"},
@@ -136,7 +136,7 @@ func TestInvalidSettingsFailWithVariableName(t *testing.T) {
 func TestProductionAndOriginValidation(t *testing.T) {
 	base := Defaults(t.TempDir())
 	for _, change := range []func(*Config){
-		func(c *Config) { c.Env = "production" }, func(c *Config) { c.Origin = "https://example.com" },
+		func(c *Config) { c.Env = "production" },
 		func(c *Config) { c.Origin = "https://example.com/" }, func(c *Config) { c.Origin = "http://example.com" },
 		func(c *Config) { c.Origin = "http://localhost:8080?" },
 	} {
@@ -148,7 +148,6 @@ func TestProductionAndOriginValidation(t *testing.T) {
 	}
 	base.Env = "production"
 	base.Origin = "https://example.com"
-	base.SecureCookies = true
 	if err := base.Validate(); err != nil {
 		t.Fatalf("valid production settings: %v", err)
 	}
@@ -174,33 +173,6 @@ func TestExampleCoversEverySetting(t *testing.T) {
 	t.Setenv("APP_ENV_FILE", "../../../.env.example")
 	if _, err = Load(); err != nil {
 		t.Fatalf("example is invalid: %v", err)
-	}
-}
-
-func TestDevelopmentAdminSettingsAndRedaction(t *testing.T) {
-	cleanEnv(t)
-	t.Setenv("APP_DEV_ADMIN_EMAIL", "dev@example.test")
-	if _, err := Load(); err == nil {
-		t.Fatal("partial bootstrap settings accepted")
-	}
-	t.Setenv("APP_DEV_ADMIN_PASSWORD", "development password")
-	c, err := Load()
-	if err != nil {
-		t.Fatal(err)
-	}
-	if c.DevAdmin.Password != "development password" || c.Values()["APP_DEV_ADMIN_PASSWORD"] != "[redacted]" {
-		t.Fatal("password loading or redaction failed")
-	}
-	for _, env := range []string{"test", "production"} {
-		t.Setenv("APP_ENV", env)
-		if _, err = Load(); err == nil || !strings.Contains(err.Error(), "APP_DEV_ADMIN") {
-			t.Fatalf("bootstrap accepted outside development: %v", err)
-		}
-	}
-	t.Setenv("APP_ENV", "development")
-	t.Setenv("APP_DEV_ADMIN_PASSWORD", "short")
-	if _, err = Load(); err == nil || strings.Contains(err.Error(), "short") {
-		t.Fatalf("invalid password accepted or disclosed: %v", err)
 	}
 }
 

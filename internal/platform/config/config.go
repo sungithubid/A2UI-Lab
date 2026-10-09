@@ -25,24 +25,15 @@ type HTTPConfig struct {
 	MaxBodyBytes      int64
 }
 
-type DevAdminConfig struct {
-	Email     string
-	Password  string
-	Workspace string
-}
-
 type Config struct {
-	Env           string
-	EnvFile       string
-	Addr          string
-	DataDir       string
-	Origin        string
-	SecureCookies bool
-	SessionTTL    time.Duration
-	LogLevel      slog.Level
-	LogFormat     string
-	DevAdmin      DevAdminConfig
-	HTTP          HTTPConfig
+	Env       string
+	EnvFile   string
+	Addr      string
+	DataDir   string
+	Origin    string
+	LogLevel  slog.Level
+	LogFormat string
+	HTTP      HTTPConfig
 }
 
 // Defaults is also the starting point for explicit configurations in tests.
@@ -50,8 +41,7 @@ type Config struct {
 func Defaults(dataDir string) Config {
 	return Config{
 		Env: "development", EnvFile: "-", Addr: "127.0.0.1:8080", DataDir: dataDir,
-		Origin: "http://localhost:8080", SessionTTL: 7 * 24 * time.Hour, LogLevel: slog.LevelInfo, LogFormat: "json",
-		DevAdmin: DevAdminConfig{Workspace: "Development"},
+		Origin: "http://localhost:8080", LogLevel: slog.LevelInfo, LogFormat: "json",
 		HTTP: HTTPConfig{
 			ReadHeaderTimeout: 5 * time.Second, ReadTimeout: 15 * time.Second, WriteTimeout: 35 * time.Second,
 			IdleTimeout: 60 * time.Second, RequestTimeout: 30 * time.Second, ShutdownTimeout: 10 * time.Second,
@@ -99,7 +89,7 @@ func Load() (Config, error) {
 		if err != nil {
 			return Config{}, err
 		}
-		dataDir = filepath.Join(base, "monoseed")
+		dataDir = filepath.Join(base, "a2ui-lab")
 	}
 	c := Defaults(dataDir)
 	c.EnvFile = loadedFile
@@ -107,9 +97,6 @@ func Load() (Config, error) {
 	c.Addr = get("APP_ADDR", c.Addr)
 	c.Origin = get("APP_ORIGIN", c.Origin)
 	c.LogFormat = get("APP_LOG_FORMAT", c.LogFormat)
-	c.DevAdmin.Email = get("APP_DEV_ADMIN_EMAIL", "")
-	c.DevAdmin.Password = get("APP_DEV_ADMIN_PASSWORD", "")
-	c.DevAdmin.Workspace = get("APP_DEV_ADMIN_WORKSPACE", c.DevAdmin.Workspace)
 	switch get("APP_LOG_LEVEL", "info") {
 	case "debug":
 		c.LogLevel = slog.LevelDebug
@@ -123,14 +110,10 @@ func Load() (Config, error) {
 		return c, fmt.Errorf("APP_LOG_LEVEL must be debug, info, warn or error")
 	}
 	var err error
-	if c.SecureCookies, err = strconv.ParseBool(get("APP_COOKIE_SECURE", "false")); err != nil {
-		return c, fmt.Errorf("APP_COOKIE_SECURE: %w", err)
-	}
 	for _, setting := range []struct {
 		key    string
 		target *time.Duration
 	}{
-		{"APP_SESSION_TTL", &c.SessionTTL},
 		{"APP_HTTP_READ_HEADER_TIMEOUT", &c.HTTP.ReadHeaderTimeout},
 		{"APP_HTTP_READ_TIMEOUT", &c.HTTP.ReadTimeout},
 		{"APP_HTTP_WRITE_TIMEOUT", &c.HTTP.WriteTimeout},
@@ -164,23 +147,15 @@ func (c Config) Validate() error {
 	if c.LogLevel != slog.LevelDebug && c.LogLevel != slog.LevelInfo && c.LogLevel != slog.LevelWarn && c.LogLevel != slog.LevelError {
 		return fmt.Errorf("APP_LOG_LEVEL must be debug, info, warn or error")
 	}
-	if c.DevAdmin.Email != "" || c.DevAdmin.Password != "" {
-		if c.Env != "development" {
-			return fmt.Errorf("APP_DEV_ADMIN_EMAIL and APP_DEV_ADMIN_PASSWORD are allowed only with APP_ENV=development")
-		}
-		if c.DevAdmin.Email == "" || c.DevAdmin.Password == "" {
-			return fmt.Errorf("APP_DEV_ADMIN_EMAIL and APP_DEV_ADMIN_PASSWORD must be set together")
-		}
-		if len(c.DevAdmin.Password) < 12 || len(c.DevAdmin.Password) > 72 {
-			return fmt.Errorf("APP_DEV_ADMIN_PASSWORD must be 12–72 bytes")
-		}
-	}
 	if !filepath.IsAbs(c.DataDir) {
 		return fmt.Errorf("APP_DATA_DIR must be an absolute path")
 	}
-	_, port, err := net.SplitHostPort(c.Addr)
+	host, port, err := net.SplitHostPort(c.Addr)
 	if err != nil {
 		return fmt.Errorf("APP_ADDR: %w", err)
+	}
+	if ip := net.ParseIP(host); ip == nil || !ip.IsLoopback() {
+		return fmt.Errorf("APP_ADDR must bind a loopback IP: this Lab has no authentication")
 	}
 	n, err := strconv.Atoi(port)
 	if err != nil || n < 0 || n > 65535 {
@@ -190,11 +165,8 @@ func (c Config) Validate() error {
 	if err != nil || u.Host == "" || (u.Scheme != "http" && u.Scheme != "https") || u.Path != "" || u.RawQuery != "" || u.ForceQuery || u.Fragment != "" || u.User != nil {
 		return fmt.Errorf("APP_ORIGIN must be an origin, e.g. https://app.example.com (no trailing slash)")
 	}
-	if u.Scheme == "https" && !c.SecureCookies {
-		return fmt.Errorf("HTTPS requires APP_COOKIE_SECURE=true")
-	}
 	if c.Env == "production" && u.Scheme != "https" {
-		return fmt.Errorf("APP_ENV=production requires an HTTPS APP_ORIGIN and APP_COOKIE_SECURE=true")
+		return fmt.Errorf("APP_ENV=production requires an HTTPS APP_ORIGIN")
 	}
 	if u.Scheme == "http" && u.Hostname() != "localhost" && u.Hostname() != "127.0.0.1" && u.Hostname() != "::1" {
 		return fmt.Errorf("non-loopback APP_ORIGIN requires HTTPS")
@@ -203,7 +175,7 @@ func (c Config) Validate() error {
 		key   string
 		value time.Duration
 	}{
-		{"APP_SESSION_TTL", c.SessionTTL}, {"APP_HTTP_READ_HEADER_TIMEOUT", c.HTTP.ReadHeaderTimeout},
+		{"APP_HTTP_READ_HEADER_TIMEOUT", c.HTTP.ReadHeaderTimeout},
 		{"APP_HTTP_READ_TIMEOUT", c.HTTP.ReadTimeout}, {"APP_HTTP_WRITE_TIMEOUT", c.HTTP.WriteTimeout},
 		{"APP_HTTP_IDLE_TIMEOUT", c.HTTP.IdleTimeout}, {"APP_HTTP_REQUEST_TIMEOUT", c.HTTP.RequestTimeout},
 		{"APP_HTTP_SHUTDOWN_TIMEOUT", c.HTTP.ShutdownTimeout}, {"APP_HTTP_HEALTH_TIMEOUT", c.HTTP.HealthTimeout},
@@ -211,9 +183,6 @@ func (c Config) Validate() error {
 		if setting.value <= 0 {
 			return fmt.Errorf("%s must be positive (timeouts cannot be disabled)", setting.key)
 		}
-	}
-	if c.SessionTTL < time.Second {
-		return fmt.Errorf("APP_SESSION_TTL must be at least 1s")
 	}
 	if c.HTTP.ReadTimeout < c.HTTP.ReadHeaderTimeout {
 		return fmt.Errorf("APP_HTTP_READ_TIMEOUT must be >= APP_HTTP_READ_HEADER_TIMEOUT")
@@ -236,14 +205,8 @@ func (c Config) Validate() error {
 // Values contains only known non-secret settings, with durations in human-readable
 // units. Secrets must be redacted explicitly; never dump the process environment.
 func (c Config) Values() map[string]string {
-	password := ""
-	if c.DevAdmin.Password != "" {
-		password = "[redacted]"
-	}
 	return map[string]string{
 		"APP_ENV": c.Env, "APP_ENV_FILE": c.EnvFile, "APP_ADDR": c.Addr, "APP_DATA_DIR": c.DataDir, "APP_ORIGIN": c.Origin,
-		"APP_DEV_ADMIN_EMAIL": c.DevAdmin.Email, "APP_DEV_ADMIN_PASSWORD": password, "APP_DEV_ADMIN_WORKSPACE": c.DevAdmin.Workspace,
-		"APP_COOKIE_SECURE": strconv.FormatBool(c.SecureCookies), "APP_SESSION_TTL": c.SessionTTL.String(),
 		"APP_LOG_LEVEL": map[slog.Level]string{slog.LevelDebug: "debug", slog.LevelInfo: "info", slog.LevelWarn: "warn", slog.LevelError: "error"}[c.LogLevel], "APP_LOG_FORMAT": c.LogFormat,
 		"APP_HTTP_READ_HEADER_TIMEOUT": c.HTTP.ReadHeaderTimeout.String(), "APP_HTTP_READ_TIMEOUT": c.HTTP.ReadTimeout.String(),
 		"APP_HTTP_WRITE_TIMEOUT": c.HTTP.WriteTimeout.String(), "APP_HTTP_IDLE_TIMEOUT": c.HTTP.IdleTimeout.String(),

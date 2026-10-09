@@ -1,5 +1,5 @@
 export const en = {
-  'Loading your workspace…': 'Loading your workspace…',
+  'Loading experiment…': 'Loading experiment…',
   'Try again': 'Try again',
   Cancel: 'Cancel',
   Previous: 'Previous',
@@ -20,7 +20,7 @@ export const en = {
     "Your team's thoughts, plans, and everyday work. Together in one calm workspace.",
   'A place to start. A place to grow.': 'A place to start. A place to grow.',
   'Welcome back': 'Welcome back',
-  'Sign in to your Monoseed workspace.': 'Sign in to your Monoseed workspace.',
+  'Open A2UI Lab.': 'Open A2UI Lab.',
   'Email address': 'Email address',
   Password: 'Password',
   'Signing in…': 'Signing in…',
@@ -124,7 +124,7 @@ export const en = {
   'Unable to connect. Please try again.': 'Unable to connect. Please try again.',
 } as const
 export const zhCN: Record<keyof typeof en, string> = {
-  'Loading your workspace…': '正在加载工作空间…',
+  'Loading experiment…': '正在加载实验…',
   'Try again': '重试',
   Cancel: '取消',
   Previous: '上一页',
@@ -145,7 +145,7 @@ export const zhCN: Record<keyof typeof en, string> = {
     '让团队的想法、计划与日常工作，在一个从容的空间里相遇。',
   'A place to start. A place to grow.': '从这里开始，在这里成长。',
   'Welcome back': '欢迎回来',
-  'Sign in to your Monoseed workspace.': '登录你的 Monoseed 工作空间。',
+  'Open A2UI Lab.': '打开 A2UI Lab。',
   'Email address': '邮箱地址',
   Password: '密码',
   'Signing in…': '正在登录…',

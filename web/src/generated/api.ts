@@ -4,7 +4,39 @@
  */
 
 export interface paths {
-    "/api/auth/login": {
+    "/api/runs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["list-runs"];
+        put?: never;
+        post: operations["create-run"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/runs/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["get-run"];
+        put?: never;
+        post?: never;
+        delete: operations["delete-run"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/runs/{id}/actions": {
         parameters: {
             query?: never;
             header?: never;
@@ -13,40 +45,21 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Sign in */
-        post: operations["login"];
+        post: operations["run-action"];
         delete?: never;
         options?: never;
         head?: never;
         patch?: never;
         trace?: never;
     };
-    "/api/auth/logout": {
+    "/api/runs/{id}/events": {
         parameters: {
             query?: never;
             header?: never;
             path?: never;
             cookie?: never;
         };
-        get?: never;
-        put?: never;
-        /** Sign out */
-        post: operations["logout"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/auth/me": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** Current session */
-        get: operations["me"];
+        get: operations["list-events"];
         put?: never;
         post?: never;
         delete?: never;
@@ -55,56 +68,17 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/workspaces": {
+    "/api/scenarios": {
         parameters: {
             query?: never;
             header?: never;
             path?: never;
             cookie?: never;
         };
-        /** Your workspaces */
-        get: operations["list-workspaces"];
+        get: operations["list-scenarios"];
         put?: never;
-        /** Create workspace */
-        post: operations["create-workspace"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/workspaces/{workspaceID}/notes": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** List workspace notes */
-        get: operations["list-notes"];
-        put?: never;
-        /** Create note */
-        post: operations["create-note"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/workspaces/{workspaceID}/notes/{id}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** Read note */
-        get: operations["get-note"];
-        /** Update note */
-        put: operations["update-note"];
         post?: never;
-        /** Delete note */
-        delete: operations["delete-note"];
+        delete?: never;
         options?: never;
         head?: never;
         patch?: never;
@@ -114,14 +88,35 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
-        CreateInputBody: {
+        Create: {
             /**
              * Format: uri
              * @description A URL to the JSON Schema for this object.
-             * @example https://example.com/api/schemas/CreateInputBody.json
+             * @example https://example.com/api/schemas/Create.json
              */
             readonly $schema?: string;
-            name: string;
+            prompt: string;
+            /** @enum {string} */
+            scenarioId: "server-health" | "streaming-text" | "tool-error";
+        };
+        Envelope: {
+            /**
+             * Format: uri
+             * @description A URL to the JSON Schema for this object.
+             * @example https://example.com/api/schemas/Envelope.json
+             */
+            readonly $schema?: string;
+            action: string;
+            /** @enum {string} */
+            category: "local" | "agent" | "tool" | "navigation";
+            componentId: string;
+            data: {
+                [key: string]: unknown;
+            };
+            runId: string;
+            surfaceId: string;
+            /** Format: int64 */
+            version: number;
         };
         ErrorDetail: {
             /** @description Where the error occurred, e.g. 'body.items[3].tags' or 'path.thing-id' */
@@ -170,89 +165,67 @@ export interface components {
              */
             type: string;
         };
-        ListOutputBody: {
-            /**
-             * Format: uri
-             * @description A URL to the JSON Schema for this object.
-             * @example https://example.com/api/schemas/ListOutputBody.json
-             */
-            readonly $schema?: string;
-            items: components["schemas"]["Workspace"][];
-        };
-        LoginInputBody: {
-            /**
-             * Format: uri
-             * @description A URL to the JSON Schema for this object.
-             * @example https://example.com/api/schemas/LoginInputBody.json
-             */
-            readonly $schema?: string;
-            email: string;
-            password: string;
-        };
-        MeBody: {
-            /**
-             * Format: uri
-             * @description A URL to the JSON Schema for this object.
-             * @example https://example.com/api/schemas/MeBody.json
-             */
-            readonly $schema?: string;
-            csrf_token: string;
-            user: components["schemas"]["User"];
-        };
-        Note: {
-            /**
-             * Format: uri
-             * @description A URL to the JSON Schema for this object.
-             * @example https://example.com/api/schemas/Note.json
-             */
-            readonly $schema?: string;
-            content: string;
-            created_at: string;
+        Event: {
             id: string;
+            kind: string;
+            payload: {
+                [key: string]: unknown;
+            };
+            runId: string;
+            /** Format: int64 */
+            seq: number;
+            timestamp: string;
+        };
+        EventsOutputBody: {
+            /**
+             * Format: uri
+             * @description A URL to the JSON Schema for this object.
+             * @example https://example.com/api/schemas/EventsOutputBody.json
+             */
+            readonly $schema?: string;
+            items: components["schemas"]["Event"][];
+        };
+        Run: {
+            /**
+             * Format: uri
+             * @description A URL to the JSON Schema for this object.
+             * @example https://example.com/api/schemas/Run.json
+             */
+            readonly $schema?: string;
+            agentType: string;
+            createdAt: string;
+            finishedAt: string;
+            id: string;
+            /** Format: int64 */
+            lastSeq: number;
+            mode: string;
+            protocolVersion: string;
+            scenarioId: string;
+            status: string;
             title: string;
-            updated_at: string;
-            workspace_id: string;
         };
-        Page: {
+        RunsOutputBody: {
             /**
              * Format: uri
              * @description A URL to the JSON Schema for this object.
-             * @example https://example.com/api/schemas/Page.json
+             * @example https://example.com/api/schemas/RunsOutputBody.json
              */
             readonly $schema?: string;
-            items: components["schemas"]["Note"][];
-            /** Format: int64 */
-            page: number;
-            /** Format: int64 */
-            page_size: number;
-            /** Format: int64 */
-            total: number;
+            items: components["schemas"]["Run"][];
         };
-        User: {
-            email: string;
-            id: string;
-        };
-        Workspace: {
-            /**
-             * Format: uri
-             * @description A URL to the JSON Schema for this object.
-             * @example https://example.com/api/schemas/Workspace.json
-             */
-            readonly $schema?: string;
+        Scenario: {
+            description: string;
             id: string;
             name: string;
-            /** @enum {string} */
-            role: "owner" | "admin" | "member";
         };
-        Write: {
+        ScenariosOutputBody: {
             /**
              * Format: uri
              * @description A URL to the JSON Schema for this object.
-             * @example https://example.com/api/schemas/Write.json
+             * @example https://example.com/api/schemas/ScenariosOutputBody.json
              */
             readonly $schema?: string;
-            content: string;
-            title: string;
+            items: components["schemas"]["Scenario"][];
         };
     };
     responses: never;
@@ -263,169 +236,13 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
-    login: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["LoginInputBody"];
-            };
-        };
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    "Set-Cookie"?: string;
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["MeBody"];
-                };
-            };
-            /** @description Error */
-            default: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ErrorModel"];
-                };
-            };
-        };
-    };
-    logout: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description No Content */
-            204: {
-                headers: {
-                    "Set-Cookie"?: string;
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description Error */
-            default: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ErrorModel"];
-                };
-            };
-        };
-    };
-    me: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["MeBody"];
-                };
-            };
-            /** @description Error */
-            default: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ErrorModel"];
-                };
-            };
-        };
-    };
-    "list-workspaces": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ListOutputBody"];
-                };
-            };
-            /** @description Error */
-            default: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ErrorModel"];
-                };
-            };
-        };
-    };
-    "create-workspace": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["CreateInputBody"];
-            };
-        };
-        responses: {
-            /** @description Created */
-            201: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Workspace"];
-                };
-            };
-            /** @description Error */
-            default: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ErrorModel"];
-                };
-            };
-        };
-    };
-    "list-notes": {
+    "list-runs": {
         parameters: {
             query?: {
-                page?: number;
-                page_size?: number;
+                offset?: number;
             };
             header?: never;
-            path: {
-                workspaceID: string;
-            };
+            path?: never;
             cookie?: never;
         };
         requestBody?: never;
@@ -436,7 +253,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["Page"];
+                    "application/json": components["schemas"]["RunsOutputBody"];
                 };
             };
             /** @description Error */
@@ -450,18 +267,16 @@ export interface operations {
             };
         };
     };
-    "create-note": {
+    "create-run": {
         parameters: {
             query?: never;
             header?: never;
-            path: {
-                workspaceID: string;
-            };
+            path?: never;
             cookie?: never;
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["Write"];
+                "application/json": components["schemas"]["Create"];
             };
         };
         responses: {
@@ -471,7 +286,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["Note"];
+                    "application/json": components["schemas"]["Run"];
                 };
             };
             /** @description Error */
@@ -485,12 +300,11 @@ export interface operations {
             };
         };
     };
-    "get-note": {
+    "get-run": {
         parameters: {
             query?: never;
             header?: never;
             path: {
-                workspaceID: string;
                 id: string;
             };
             cookie?: never;
@@ -503,7 +317,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["Note"];
+                    "application/json": components["schemas"]["Run"];
                 };
             };
             /** @description Error */
@@ -517,48 +331,11 @@ export interface operations {
             };
         };
     };
-    "update-note": {
+    "delete-run": {
         parameters: {
             query?: never;
             header?: never;
             path: {
-                workspaceID: string;
-                id: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["Write"];
-            };
-        };
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Note"];
-                };
-            };
-            /** @description Error */
-            default: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ErrorModel"];
-                };
-            };
-        };
-    };
-    "delete-note": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                workspaceID: string;
                 id: string;
             };
             cookie?: never;
@@ -571,6 +348,103 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ErrorModel"];
+                };
+            };
+        };
+    };
+    "run-action": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["Envelope"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Run"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ErrorModel"];
+                };
+            };
+        };
+    };
+    "list-events": {
+        parameters: {
+            query?: {
+                after?: number;
+            };
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EventsOutputBody"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ErrorModel"];
+                };
+            };
+        };
+    };
+    "list-scenarios": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ScenariosOutputBody"];
+                };
             };
             /** @description Error */
             default: {

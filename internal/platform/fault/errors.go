@@ -6,7 +6,7 @@ import "errors"
 var (
 	ErrInvalid      = errors.New("invalid input")
 	ErrUnauthorized = errors.New("invalid credentials or expired session")
-	ErrForbidden    = errors.New("workspace access denied")
+	ErrForbidden    = errors.New("access denied")
 	ErrNotFound     = errors.New("resource not found")
 	ErrConflict     = errors.New("resource already exists")
 )

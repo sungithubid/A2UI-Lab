@@ -12,19 +12,14 @@ import (
 	"testing"
 	"time"
 
-	"github.com/danielgtaylor/huma/v2"
-
-	"monoseed/internal/modules/auth"
-	"monoseed/internal/modules/notes"
-	"monoseed/internal/modules/workspace"
-	"monoseed/internal/platform/config"
+	"github.com/sungithubid/A2UI-Lab/internal/event"
+	"github.com/sungithubid/A2UI-Lab/internal/modules/lab"
+	"github.com/sungithubid/A2UI-Lab/internal/platform/config"
 )
 
 func testApp(t *testing.T) *App {
 	t.Helper()
 	c := config.Defaults(t.TempDir())
-	c.Addr = "127.0.0.1:0"
-	c.SessionTTL = time.Hour
 	a, err := Open(context.Background(), c, slog.New(slog.NewTextHandler(io.Discard, nil)))
 	if err != nil {
 		t.Fatal(err)
@@ -32,291 +27,213 @@ func testApp(t *testing.T) *App {
 	t.Cleanup(func() { a.Close() })
 	return a
 }
-
-type client struct {
-	t      *testing.T
-	a      *App
-	cookie string
-	csrf   string
-}
-
-func (c *client) request(method, path string, body any, status int) *httptest.ResponseRecorder {
-	c.t.Helper()
-	var data []byte
-	if body != nil {
-		var err error
-		data, err = json.Marshal(body)
-		if err != nil {
-			c.t.Fatal(err)
-		}
+func request(t *testing.T, a *App, method, path string, body any, status int) *httptest.ResponseRecorder {
+	t.Helper()
+	data, err := json.Marshal(body)
+	if err != nil {
+		t.Fatal(err)
 	}
 	r := httptest.NewRequest(method, path, bytes.NewReader(data))
+	r.Host = "localhost:8080"
+	r.Header.Set("Origin", a.Config.Origin)
 	r.Header.Set("Content-Type", "application/json")
-	r.Header.Set("Origin", c.a.Config.Origin)
-	if c.cookie != "" {
-		r.Header.Set("Cookie", c.cookie)
-	}
-	r.Header.Set("X-CSRF-Token", c.csrf)
 	w := httptest.NewRecorder()
-	c.a.Handler.ServeHTTP(w, r)
+	a.Handler.ServeHTTP(w, r)
 	if w.Code != status {
-		c.t.Fatalf("%s %s: status=%d want=%d body=%s", method, path, w.Code, status, w.Body.String())
+		t.Fatalf("%s %s: %d want %d: %s", method, path, w.Code, status, w.Body.String())
 	}
 	return w
 }
-
-func (c *client) login(email string) {
-	c.t.Helper()
-	w := c.request("POST", "/api/auth/login", map[string]string{"email": email, "password": "test password 12345"}, 200)
-	var out auth.MeBody
-	if err := json.Unmarshal(w.Body.Bytes(), &out); err != nil {
-		c.t.Fatal(err)
-	}
-	c.csrf = out.CSRFToken
-	cookies := w.Result().Cookies()
-	if len(cookies) != 1 || !cookies[0].HttpOnly || cookies[0].SameSite != http.SameSiteStrictMode {
-		c.t.Fatal("unsafe cookie")
-	}
-	c.cookie = cookies[0].Name + "=" + cookies[0].Value
-}
-
-func (c *client) workspaces() []workspace.Workspace {
-	w := c.request("GET", "/api/workspaces", nil, 200)
-	var out struct {
-		Items []workspace.Workspace `json:"items"`
-	}
-	if err := json.Unmarshal(w.Body.Bytes(), &out); err != nil {
-		c.t.Fatal(err)
-	}
-	return out.Items
-}
-
-func TestAPIEndToEndAndWorkspaceIsolation(t *testing.T) {
+func TestLabLifecycleActionsReplayAndIsolation(t *testing.T) {
 	a := testApp(t)
-	ctx := context.Background()
-	for _, email := range []string{"owner@example.com", "outsider@example.com"} {
-		if _, err := a.Auth.CreateAdmin(ctx, email, "test password 12345", "Workspace"); err != nil {
+	request(t, a, "GET", "/healthz", nil, 200)
+	request(t, a, "GET", "/readyz", nil, 200)
+	request(t, a, "GET", "/api/workspaces", nil, 404)
+	request(t, a, "POST", "/api/auth/login", nil, 404)
+	request(t, a, "POST", "/api/runs", map[string]any{"prompt": "   ", "scenarioId": "server-health"}, 422)
+	request(t, a, "POST", "/api/runs", map[string]any{"prompt": "hello", "scenarioId": "unknown"}, 422)
+	request(t, a, "GET", "/api/runs/missing", nil, 404)
+	request(t, a, "GET", "/api/scenarios", nil, 200)
+	w := request(t, a, "POST", "/api/runs", lab.Create{Prompt: "Analyze server health", ScenarioID: "server-health"}, 201)
+	var run lab.Run
+	if err := json.Unmarshal(w.Body.Bytes(), &run); err != nil {
+		t.Fatal(err)
+	}
+	base := "/api/runs/" + run.ID
+	request(t, a, "DELETE", base, nil, 409)
+	deadline := time.Now().Add(5 * time.Second)
+	for time.Now().Before(deadline) {
+		r, err := a.Lab.Get(context.Background(), run.ID)
+		if err != nil {
 			t.Fatal(err)
 		}
+		run = r
+		if r.Status != "running" {
+			break
+		}
+		time.Sleep(20 * time.Millisecond)
 	}
-	c := client{t: t, a: a}
-	c.request("GET", "/healthz", nil, 200)
-	c.request("GET", "/readyz", nil, 200)
-	c.request("GET", "/api/workspaces", nil, 401)
-	c.login("owner@example.com")
-	c.request("GET", "/api/auth/me", nil, 200)
-	ws := c.workspaces()[0]
-	base := "/api/workspaces/" + ws.ID + "/notes"
-	c.request("POST", base, map[string]string{"title": "   ", "content": "x"}, 422)
-	c.request("GET", base+"?page=0", nil, 422)
-	savedCSRF := c.csrf
-	c.csrf = "bad"
-	c.request("POST", base, map[string]string{"title": "CSRF"}, 403)
-	c.csrf = savedCSRF
-	w := c.request("POST", base, map[string]string{"title": "Original", "content": "Secret"}, 201)
-	var n notes.Note
-	if err := json.Unmarshal(w.Body.Bytes(), &n); err != nil {
-		t.Fatal(err)
+	if run.Status != "completed" {
+		t.Fatalf("run not completed: %+v", run)
 	}
-	c.request("GET", base+"/"+n.ID, nil, 200)
-	c.request("PUT", base+"/"+n.ID, map[string]string{"title": "Updated", "content": "Kept"}, 200)
-	page := c.request("GET", base+"?page=1&page_size=1", nil, 200)
-	var p notes.Page
-	if err := json.Unmarshal(page.Body.Bytes(), &p); err != nil || p.Total != 1 || len(p.Items) != 1 {
-		t.Fatalf("pagination: %+v %v", p, err)
+	read := func() []event.Event {
+		t.Helper()
+		w := request(t, a, "GET", base+"/events", nil, 200)
+		var out struct {
+			Items []event.Event `json:"items"`
+		}
+		if err := json.Unmarshal(w.Body.Bytes(), &out); err != nil {
+			t.Fatal(err)
+		}
+		return out.Items
 	}
-	// Same user, different workspace: membership alone must not allow ID substitution.
-	second := c.request("POST", "/api/workspaces", map[string]string{"name": "Second"}, 201)
-	var secondWS workspace.Workspace
-	if err := json.Unmarshal(second.Body.Bytes(), &secondWS); err != nil {
-		t.Fatal(err)
+	events := read()
+	seen := map[string]bool{}
+	for i, e := range events {
+		if e.Seq != int64(i+1) || e.RunID != run.ID || !json.Valid(mustJSON(t, e.Payload)) {
+			t.Fatalf("invalid event: %+v", e)
+		}
+		seen[e.Kind] = true
 	}
-	wrongBase := "/api/workspaces/" + secondWS.ID + "/notes"
-	c.request("GET", wrongBase+"/"+n.ID, nil, 404)
-	c.request("PUT", wrongBase+"/"+n.ID, map[string]string{"title": "Hijacked", "content": ""}, 404)
-	c.request("DELETE", wrongBase+"/"+n.ID, nil, 404)
-	outsider := client{t: t, a: a}
-	outsider.login("outsider@example.com")
-	outsider.request("GET", base, nil, 403)
-	outsider.request("GET", base+"/"+n.ID, nil, 403)
-	outsider.request("POST", base, map[string]string{"title": "Attack", "content": ""}, 403)
-	outsider.request("PUT", base+"/"+n.ID, map[string]string{"title": "Attack", "content": ""}, 403)
-	outsider.request("DELETE", base+"/"+n.ID, nil, 403)
-	// Revocation is effective on the very next request, even with an active session.
-	user, _, err := auth.NewRepository(a.DB).Credentials(ctx, "owner@example.com")
-	if err != nil {
-		t.Fatal(err)
-	}
-	if _, err = a.DB.Exec("DELETE FROM workspace_members WHERE user_id=? AND workspace_id=?", user.ID, secondWS.ID); err != nil {
-		t.Fatal(err)
-	}
-	c.request("GET", wrongBase, nil, 403)
-	c.request("DELETE", base+"/"+n.ID, nil, 204)
-	c.request("GET", base+"/"+n.ID, nil, 404)
-	c.request("POST", "/api/auth/logout", nil, 204)
-	c.request("GET", "/api/auth/me", nil, 401)
-}
-
-func TestOriginRateLimitAndBodyLimit(t *testing.T) {
-	a := testApp(t)
-	for _, origin := range []string{"", "https://evil.test"} {
-		r := httptest.NewRequest("POST", "/api/auth/login", strings.NewReader(`{"email":"a@b.com","password":"p"}`))
-		r.Header.Set("Origin", origin)
-		r.Header.Set("Content-Type", "application/json")
-		w := httptest.NewRecorder()
-		a.Handler.ServeHTTP(w, r)
-		if w.Code != 403 {
-			t.Fatalf("origin accepted: %d", w.Code)
+	for _, kind := range []string{"run.started", "user.message", "agent.started", "model.text_delta", "tool.started", "tool.completed", "agent.progress", "presentation.event", "a2ui.message", "run.completed"} {
+		if !seen[kind] {
+			t.Errorf("missing %s", kind)
 		}
 	}
-	c := client{t: t, a: a}
-	for i := 0; i < 10; i++ {
-		c.request("POST", "/api/auth/login", map[string]string{"email": "missing@example.com", "password": "wrong"}, 401)
+	if string(mustJSON(t, events)) != string(mustJSON(t, read())) {
+		t.Fatal("replay read changed the canonical stream")
 	}
-	c.request("POST", "/api/auth/login", map[string]string{"email": "missing@example.com", "password": "wrong"}, 429)
-	// A different IP is needed because the login bucket above is exhausted.
-	r := httptest.NewRequest("POST", "/api/auth/login", strings.NewReader(`{"email":"`+strings.Repeat("x", 150000)+`"}`))
-	r.RemoteAddr = "127.0.0.2:1234"
-	r.Header.Set("Content-Type", "application/json")
-	r.Header.Set("Origin", a.Config.Origin)
-	w := httptest.NewRecorder()
-	a.Handler.ServeHTTP(w, r)
-	if w.Code != 413 {
-		t.Fatalf("body limit: %d %s", w.Code, w.Body.String())
+	action := map[string]any{"version": 1, "runId": run.ID, "surfaceId": "main", "componentId": "view-errors", "category": "tool", "action": "view_errors", "data": map[string]any{}}
+	action["runId"] = "other"
+	request(t, a, "POST", base+"/actions", action, 422)
+	action["runId"] = run.ID
+	action["action"] = "execute_shell"
+	request(t, a, "POST", base+"/actions", action, 422)
+	action["action"] = "view_errors"
+	request(t, a, "POST", base+"/actions", action, 200)
+	after := read()
+	if len(after) <= len(events) {
+		t.Fatal("action not persisted")
 	}
-}
-
-func TestAPI404AndSPA(t *testing.T) {
-	a := testApp(t)
-	c := client{t: t, a: a}
-	w := c.request("GET", "/api/does-not-exist", nil, 404)
-	if !strings.Contains(w.Header().Get("Content-Type"), "application/problem+json") {
-		t.Fatal("API 404 returned HTML")
+	request(t, a, "POST", base+"/actions", action, 200)
+	if len(read()) != len(after) {
+		t.Fatal("duplicate action appended twice")
 	}
-	c.request("GET", "/assets/missing.js", nil, 404)
-	c.request("GET", "/missing.js", nil, 404)
-}
-
-func TestConfiguredServerLimits(t *testing.T) {
-	a := testApp(t)
-	a.Config.HTTP.ReadHeaderTimeout = 3 * time.Second
-	a.Config.HTTP.ReadTimeout = 8 * time.Second
-	a.Config.HTTP.WriteTimeout = 45 * time.Second
-	a.Config.HTTP.IdleTimeout = 90 * time.Second
-	a.Config.HTTP.MaxHeaderBytes = 8192
-	server := a.httpServer()
-	if server.ReadHeaderTimeout != 3*time.Second || server.ReadTimeout != 8*time.Second || server.WriteTimeout != 45*time.Second || server.IdleTimeout != 90*time.Second || server.MaxHeaderBytes != 8192 {
-		t.Fatalf("server ignored configuration: %+v", server)
-	}
-	// Use a global cap smaller than Huma's login cap, proving both layers compose.
-	a.Config.HTTP.MaxBodyBytes = 64
-	a.Handler, a.API = Router(a.Config, a.DB, a.Auth, a.Log)
-	login := a.API.OpenAPI().Paths["/api/auth/login"].Post
-	if login.MaxBodyBytes != 64 || login.BodyReadTimeout != 0 {
-		t.Fatalf("Huma overrides server limits: %+v", login)
-	}
-	c := client{t: t, a: a}
-	c.request("POST", "/api/auth/login", map[string]string{"email": "a@example.com", "password": strings.Repeat("x", 64)}, 413)
-}
-
-func TestConfiguredRequestDeadline(t *testing.T) {
-	a := testApp(t)
-	if _, err := a.Auth.CreateAdmin(context.Background(), "deadline@example.com", "test password 12345", "Team"); err != nil {
-		t.Fatal(err)
-	}
-	c := client{t: t, a: a}
-	c.login("deadline@example.com")
-	a.Config.HTTP.RequestTimeout = 20 * time.Millisecond
-	a.Handler, a.API = Router(a.Config, a.DB, a.Auth, a.Log)
-	release := make(chan struct{})
-	defer close(release)
-	huma.Register(a.API, huma.Operation{OperationID: "deadline-test", Method: "GET", Path: "/api/wait"}, func(ctx context.Context, _ *struct{}) (*struct{}, error) {
-		<-ctx.Done()
-		<-release
-		return nil, nil
-	})
-	start := time.Now()
-	c.request("GET", "/api/wait", nil, 503)
-	if time.Since(start) > time.Second {
-		t.Fatal("request did not respect the configured deadline")
-	}
-}
-
-func TestDevelopmentBootstrapCreatesOnceAndKeepsPassword(t *testing.T) {
-	a := testApp(t)
-	a.Config.DevAdmin = config.DevAdminConfig{Email: "dev@example.com", Password: "test password 12345", Workspace: "Dev team"}
-	ctx := context.Background()
-	if err := a.initializeDevAdmin(ctx); err != nil {
-		t.Fatal(err)
-	}
-	c := client{t: t, a: a}
-	c.login("dev@example.com")
-	if items := c.workspaces(); len(items) != 1 || items[0].Name != "Dev team" || items[0].Role != "owner" {
-		t.Fatalf("bootstrap workspace: %+v", items)
-	}
-	a.Config.DevAdmin.Password = "a different password"
-	if err := a.initializeDevAdmin(ctx); err != nil {
-		t.Fatal(err)
-	}
-	c.login("dev@example.com")
-	if _, _, err := a.Auth.Login(ctx, "dev@example.com", a.Config.DevAdmin.Password); err == nil {
-		t.Fatal("startup replaced the existing password")
-	}
-	if items := c.workspaces(); len(items) != 1 {
-		t.Fatal("restart created duplicate workspaces")
-	}
-}
-
-func TestDevelopmentBootstrapIsOptInAndNotTriggeredByOpen(t *testing.T) {
-	c := config.Defaults(t.TempDir())
-	c.DevAdmin = config.DevAdminConfig{Email: "dev@example.com", Password: "test password 12345", Workspace: "Dev team"}
-	a, err := Open(context.Background(), c, slog.New(slog.NewTextHandler(io.Discard, nil)))
+	other, err := a.Lab.Create(context.Background(), lab.Create{Prompt: "Other run", ScenarioID: "streaming-text"})
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer a.Close()
-	var count int
-	if err = a.DB.QueryRow("SELECT count(*) FROM users").Scan(&count); err != nil || count != 0 {
-		t.Fatalf("Open created users: %d %v", count, err)
-	}
-	a.Config.DevAdmin.Email = ""
-	if err = a.initializeDevAdmin(context.Background()); err != nil {
+	isolated, err := a.Lab.Events(context.Background(), other.ID, 0)
+	if err != nil {
 		t.Fatal(err)
 	}
-	if err = a.DB.QueryRow("SELECT count(*) FROM users").Scan(&count); err != nil || count != 0 {
-		t.Fatalf("opt-out created users: %d %v", count, err)
+	for _, e := range isolated {
+		if e.RunID == run.ID {
+			t.Fatal("cross-run leak")
+		}
+	}
+	request(t, a, "DELETE", base, nil, 204)
+	request(t, a, "GET", base+"/events", nil, 404)
+	var count int
+	if err = a.DB.QueryRow("SELECT count(*) FROM events WHERE run_id=?", run.ID).Scan(&count); err != nil || count != 0 {
+		t.Fatal("events not cascade deleted", err)
 	}
 }
-
-func TestDevelopmentLoopbackOriginsKeepCSRFAndPortsStrict(t *testing.T) {
-	a := testApp(t)
-	if _, err := a.Auth.CreateAdmin(context.Background(), "dev@example.com", "test password 12345", "Dev"); err != nil {
+func mustJSON(t *testing.T, v any) []byte {
+	t.Helper()
+	b, err := json.Marshal(v)
+	if err != nil {
 		t.Fatal(err)
 	}
+	return b
+}
+func TestLocalBoundaryBodyLimitAndTimeoutConfiguration(t *testing.T) {
+	a := testApp(t)
 	for _, tc := range []struct {
-		origin string
-		status int
-	}{
-		{"http://127.0.0.1:8080", 200}, {"http://localhost:8080", 200},
-		{"http://127.0.0.1:5173", 403}, {"http://localhost.evil.test:8080", 403}, {"", 403},
-	} {
-		r := httptest.NewRequest("POST", "/api/auth/login", strings.NewReader(`{"email":"dev@example.com","password":"test password 12345"}`))
-		r.Header.Set("Content-Type", "application/json")
+		host, origin, site string
+		status             int
+	}{{"localhost:8080", "http://evil.test", "", 403}, {"evil.test", "", "", 403}, {"localhost:8080", "", "cross-site", 403}, {"127.0.0.1:8080", "http://127.0.0.1:8080", "same-origin", 200}, {"localhost:8080", "", "", 200}} {
+		r := httptest.NewRequest("GET", "/api/runs", nil)
+		r.Host = tc.host
 		r.Header.Set("Origin", tc.origin)
+		r.Header.Set("Sec-Fetch-Site", tc.site)
 		w := httptest.NewRecorder()
 		a.Handler.ServeHTTP(w, r)
 		if w.Code != tc.status {
-			t.Fatalf("origin %q: got %d want %d", tc.origin, w.Code, tc.status)
+			t.Fatalf("%+v: %d", tc, w.Code)
 		}
 	}
-	c := client{t: t, a: a}
-	c.login("dev@example.com")
-	r := httptest.NewRequest("POST", "/api/auth/logout", nil)
-	r.Header.Set("Origin", "http://127.0.0.1:8080")
-	r.Header.Set("Cookie", c.cookie)
+	r := httptest.NewRequest("POST", "/api/runs", strings.NewReader(`{}`))
+	r.Host = "localhost:8080"
+	r.Header.Set("Content-Type", "text/plain")
 	w := httptest.NewRecorder()
 	a.Handler.ServeHTTP(w, r)
-	if w.Code != 403 {
-		t.Fatal("loopback alias bypassed CSRF")
+	if w.Code != 415 {
+		t.Fatal("simple cross-site POST accepted")
+	}
+	request(t, a, "POST", "/api/runs", map[string]any{"prompt": strings.Repeat("x", 9000), "scenarioId": "server-health"}, 413)
+	server := a.httpServer()
+	c := a.Config.HTTP
+	if server.ReadHeaderTimeout != c.ReadHeaderTimeout || server.ReadTimeout != c.ReadTimeout || server.WriteTimeout != c.WriteTimeout || server.IdleTimeout != c.IdleTimeout || server.MaxHeaderBytes != c.MaxHeaderBytes {
+		t.Fatal("configured limits not applied")
+	}
+	a.DB.Close()
+	request(t, a, "GET", "/readyz", nil, 503)
+}
+func TestSSEFlushAndResume(t *testing.T) {
+	a := testApp(t)
+	run, err := a.Lab.Create(context.Background(), lab.Create{Prompt: "stream", ScenarioID: "streaming-text"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	srv := httptest.NewServer(a.Handler)
+	defer srv.Close()
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+	req, err := http.NewRequestWithContext(ctx, "GET", srv.URL+"/api/runs/"+run.ID+"/stream", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	req.Host = "localhost:8080"
+	req.Header.Set("Last-Event-ID", "1")
+	response, err := http.DefaultClient.Do(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer response.Body.Close()
+	if response.StatusCode != 200 || response.Header.Get("Content-Type") != "text/event-stream" {
+		t.Fatal("not an SSE response", response.Status)
+	}
+	buf := make([]byte, 4096)
+	text := ""
+	for !strings.Contains(text, "id: 2\n") {
+		n, e := response.Body.Read(buf)
+		text += string(buf[:n])
+		if e != nil {
+			t.Fatal("stream did not flush promptly", e, text)
+		}
+	}
+	if strings.Contains(text, "id: 1\n") || !strings.Contains(text, "event: lab") {
+		t.Fatal("resume cursor ignored", text)
+	}
+	request(t, a, "GET", "/api/runs/"+run.ID+"/stream?after=-1", nil, 400)
+}
+
+func TestMaintenanceOpenDoesNotInterruptRuns(t *testing.T) {
+	a := testApp(t)
+	repo := lab.NewRepository(a.DB)
+	run, err := repo.Create(context.Background(), "Active run", "server-health", "v0.9.1")
+	if err != nil {
+		t.Fatal(err)
+	}
+	// CLI doctor/backup/migrate use Open, but only Serve may recover old runs.
+	maintenance, err := Open(context.Background(), a.Config, a.Log)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer maintenance.Close()
+	got, err := a.Lab.Get(context.Background(), run.ID)
+	if err != nil || got.Status != "running" || got.LastSeq != 0 {
+		t.Fatalf("maintenance changed active run: %+v %v", got, err)
 	}
 }

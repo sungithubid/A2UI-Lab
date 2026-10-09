@@ -9,7 +9,7 @@ install:
 
 dev:
 	@mkdir -p bin
-	go build -o bin/myapp-dev ./cmd/app
+	go build -o bin/a2ui-lab-dev ./cmd/app
 	node scripts/dev.mjs
 
 fmt:
@@ -33,7 +33,7 @@ frontend:
 
 build: frontend
 	@mkdir -p bin
-	CGO_ENABLED=0 go build -trimpath -ldflags "-s -w -X main.version=$(VERSION)" -o bin/myapp ./cmd/app
+	CGO_ENABLED=0 go build -trimpath -ldflags "-s -w -X main.version=$(VERSION)" -o bin/a2ui-lab ./cmd/app
 
 test:
 	go test ./cmd/... ./internal/...

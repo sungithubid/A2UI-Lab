@@ -8,7 +8,7 @@ import test from 'node:test'
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 test('sqlc checks detect drift without rewriting artifacts and generation repairs file sets', () => {
-  const fixture = mkdtempSync(join(tmpdir(), 'monoseed-sqlc-test-'))
+  const fixture = mkdtempSync(join(tmpdir(), 'a2ui-lab-sqlc-test-'))
   try {
     for (const path of [
       'sqlc.yaml',
@@ -17,7 +17,7 @@ test('sqlc checks detect drift without rewriting artifacts and generation repair
       'internal/platform/database/migrations',
     ])
       cpSync(join(root, path), join(fixture, path), { recursive: true })
-    for (const module of ['auth', 'workspace', 'notes']) {
+    for (const module of ['lab']) {
       for (const path of ['queries.sql', 'dbgen'])
         cpSync(
           join(root, 'internal/modules', module, path),
@@ -25,7 +25,7 @@ test('sqlc checks detect drift without rewriting artifacts and generation repair
           { recursive: true },
         )
     }
-    const generated = join(fixture, 'internal/modules/notes/dbgen')
+    const generated = join(fixture, 'internal/modules/lab/dbgen')
     const snapshot = () =>
       readdirSync(generated)
         .sort()
@@ -57,11 +57,11 @@ test('sqlc checks detect drift without rewriting artifacts and generation repair
     assert.deepEqual(snapshot(), extra)
     assert.equal(run(false).status, 0)
     assert.equal(run().status, 0)
-    const query = join(fixture, 'internal/modules/notes/queries.sql')
+    const query = join(fixture, 'internal/modules/lab/queries.sql')
     writeFileSync(
       query,
       readFileSync(query, 'utf8') +
-        '\n-- name: InvalidFixture :one\nSELECT nonexistent_column FROM notes;\n',
+        '\n-- name: InvalidFixture :one\nSELECT nonexistent_column FROM runs;\n',
     )
     const beforeFailure = snapshot()
     const invalid = run(false)

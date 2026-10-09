@@ -6,17 +6,19 @@ import (
 
 	"github.com/danielgtaylor/huma/v2"
 
-	"monoseed/internal/platform/fault"
+	"github.com/sungithubid/A2UI-Lab/internal/platform/fault"
 )
 
 func Error(err error) error {
 	switch {
+	case err == nil:
+		return nil
 	case errors.Is(err, fault.ErrInvalid):
 		return huma.Error422UnprocessableEntity(err.Error())
 	case errors.Is(err, fault.ErrUnauthorized):
 		return huma.Error401Unauthorized("Invalid credentials or expired session")
 	case errors.Is(err, fault.ErrForbidden):
-		return huma.Error403Forbidden("Workspace access denied")
+		return huma.Error403Forbidden("Access denied")
 	case errors.Is(err, fault.ErrNotFound):
 		return huma.Error404NotFound("Resource not found")
 	case errors.Is(err, fault.ErrConflict):

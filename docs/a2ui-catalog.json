@@ -1,0 +1,19 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/sungithubid/A2UI-Lab/catalog/v1",
+  "title": "A2UI Lab v1 supported catalog subset",
+  "description": "Component definitions for the Lab v0.9.1 subset; no functions, templates or themes.",
+  "$defs": {
+    "anyComponent": {
+      "oneOf": [
+        {"type":"object","required":["id","component","text"],"properties":{"id":{"$ref":"https://a2ui.org/specification/v0_9_1/common_types.json#/$defs/ComponentId"},"component":{"const":"Text"},"text":{"oneOf":[{"type":"string"},{"type":"object","required":["path"],"properties":{"path":{"type":"string","pattern":"^/[^/]+$"}},"additionalProperties":false}]}},"additionalProperties":false},
+        {"type":"object","required":["id","component","children"],"properties":{"id":{"$ref":"https://a2ui.org/specification/v0_9_1/common_types.json#/$defs/ComponentId"},"component":{"enum":["Row","Column"]},"children":{"allOf":[{"$ref":"https://a2ui.org/specification/v0_9_1/common_types.json#/$defs/ChildList"},{"type":"array","items":{"type":"string"}}]}},"additionalProperties":false},
+        {"type":"object","required":["id","component","child"],"properties":{"id":{"$ref":"https://a2ui.org/specification/v0_9_1/common_types.json#/$defs/ComponentId"},"component":{"const":"Card"},"child":{"$ref":"https://a2ui.org/specification/v0_9_1/common_types.json#/$defs/ComponentId"}},"additionalProperties":false},
+        {"type":"object","required":["id","component","child","action"],"properties":{"id":{"$ref":"https://a2ui.org/specification/v0_9_1/common_types.json#/$defs/ComponentId"},"component":{"const":"Button"},"child":{"$ref":"https://a2ui.org/specification/v0_9_1/common_types.json#/$defs/ComponentId"},"action":{"type":"object","required":["event"],"properties":{"event":{"type":"object","required":["name","context"],"properties":{"name":{"type":"string"},"context":{"type":"object"}},"additionalProperties":false}},"additionalProperties":false}},"additionalProperties":false},
+        {"type":"object","required":["id","component","text","value"],"properties":{"id":{"$ref":"https://a2ui.org/specification/v0_9_1/common_types.json#/$defs/ComponentId"},"component":{"enum":["LabToolCall","LabToolResult"]},"text":{"type":"string"},"value":{"type":"object"}},"additionalProperties":false},
+        {"type":"object","required":["id","component","text","percent"],"properties":{"id":{"$ref":"https://a2ui.org/specification/v0_9_1/common_types.json#/$defs/ComponentId"},"component":{"const":"LabProgress"},"text":{"type":"string"},"percent":{"type":"number","minimum":0,"maximum":100}},"additionalProperties":false},
+        {"type":"object","required":["id","component","text"],"properties":{"id":{"$ref":"https://a2ui.org/specification/v0_9_1/common_types.json#/$defs/ComponentId"},"component":{"const":"LabAlert"},"text":{"type":"string"}},"additionalProperties":false}
+      ]
+    }
+  }
+}

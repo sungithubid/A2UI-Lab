@@ -1,4 +1,4 @@
-module monoseed/tools/sqlc
+module github.com/sungithubid/A2UI-Lab/tools/sqlc
 
 go 1.27.1
 

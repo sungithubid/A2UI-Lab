@@ -1,4 +1,4 @@
-module monoseed
+module github.com/sungithubid/A2UI-Lab
 
 go 1.27.1
 
@@ -7,8 +7,6 @@ require (
 	github.com/go-chi/chi/v5 v5.3.2
 	github.com/joho/godotenv v1.5.1
 	github.com/pressly/goose/v3 v3.28.0
-	golang.org/x/crypto v0.57.0
-	golang.org/x/term v0.46.0
 	modernc.org/sqlite v1.60.1
 )
 

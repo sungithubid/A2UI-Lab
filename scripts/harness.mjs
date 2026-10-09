@@ -4,11 +4,10 @@ import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 const root = fileURLToPath(new URL('../', import.meta.url))
-export const password = 'test password 12345'
 export function harness(port, overrides = {}) {
-  const directory = mkdtempSync(join(tmpdir(), 'monoseed-test-'))
-  const binary = join(directory, 'myapp')
-  copyFileSync(resolve(root, 'bin/myapp'), binary)
+  const directory = mkdtempSync(join(tmpdir(), 'a2ui-lab-test-'))
+  const binary = join(directory, 'a2ui-lab')
+  copyFileSync(resolve(root, 'bin/a2ui-lab'), binary)
   const origin = `http://127.0.0.1:${port}`
   const env = {
     ...Object.fromEntries(Object.entries(process.env).filter(([key]) => !key.startsWith('APP_'))),
@@ -17,7 +16,6 @@ export function harness(port, overrides = {}) {
     APP_ADDR: `127.0.0.1:${port}`,
     APP_ORIGIN: origin,
     APP_DATA_DIR: directory,
-    APP_COOKIE_SECURE: 'false',
     ...overrides,
   }
   let child
@@ -30,12 +28,6 @@ export function harness(port, overrides = {}) {
     })
     if (result.status !== 0) throw new Error(`${args.join(' ')} failed: ${result.stderr}`)
     return result.stdout
-  }
-  function admin(email, workspace) {
-    return command(
-      ['admin', 'create', '--email', email, '--workspace', workspace, '--password-stdin'],
-      password + '\n',
-    )
   }
   async function start() {
     child = spawn(binary, ['serve'], {
@@ -85,5 +77,5 @@ export function harness(port, overrides = {}) {
       rmSync(directory, { recursive: true, force: true })
     }
   }
-  return { directory, origin, command, admin, start, stop, cleanup }
+  return { directory, origin, command, start, stop, cleanup }
 }

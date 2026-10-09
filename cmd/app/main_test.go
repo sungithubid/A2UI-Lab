@@ -9,7 +9,7 @@ import (
 	"strings"
 	"testing"
 
-	"monoseed/internal/platform/config"
+	"github.com/sungithubid/A2UI-Lab/internal/platform/config"
 )
 
 func TestConfigShowIsReadableAndDoesNotOpenDatabase(t *testing.T) {
@@ -21,8 +21,6 @@ func TestConfigShowIsReadableAndDoesNotOpenDatabase(t *testing.T) {
 	t.Setenv("APP_DATA_DIR", dir)
 	t.Setenv("APP_HTTP_REQUEST_TIMEOUT", "10s")
 	t.Setenv("UNRELATED_SECRET", "never-print-this")
-	t.Setenv("APP_DEV_ADMIN_EMAIL", "cli@example.test")
-	t.Setenv("APP_DEV_ADMIN_PASSWORD", "never-print-this")
 	output, err := os.CreateTemp(t.TempDir(), "config-output")
 	if err != nil {
 		t.Fatal(err)
@@ -45,7 +43,7 @@ func TestConfigShowIsReadableAndDoesNotOpenDatabase(t *testing.T) {
 	if err = json.Unmarshal(data, &values); err != nil {
 		t.Fatal(err)
 	}
-	if values["APP_HTTP_REQUEST_TIMEOUT"] != "10s" || values["APP_DATA_DIR"] != dir || values["APP_DEV_ADMIN_PASSWORD"] != "[redacted]" || strings.Contains(string(data), "never-print-this") {
+	if values["APP_HTTP_REQUEST_TIMEOUT"] != "10s" || values["APP_DATA_DIR"] != dir || strings.Contains(string(data), "never-print-this") {
 		t.Fatalf("unexpected config output: %s", data)
 	}
 	if _, err = os.Stat(dir); !os.IsNotExist(err) {

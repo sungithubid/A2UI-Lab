@@ -7,7 +7,7 @@ import { fileURLToPath } from 'node:url'
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 const check = process.argv.includes('--check')
-const temp = mkdtempSync(join(tmpdir(), 'monoseed-sqlc-'))
+const temp = mkdtempSync(join(tmpdir(), 'a2ui-lab-sqlc-'))
 const outputs = []
 function files(directory, prefix = '') {
   if (!existsSync(directory)) return new Map()

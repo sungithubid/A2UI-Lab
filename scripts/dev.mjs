@@ -23,10 +23,9 @@ const env = {
   APP_DATA_DIR: directory,
   APP_ADDR: '127.0.0.1:8080',
   APP_ORIGIN: 'http://localhost:5173',
-  APP_COOKIE_SECURE: 'false',
 }
 const children = [
-  spawn(resolve('bin/myapp-dev'), ['serve'], { env, stdio: 'inherit' }),
+  spawn(resolve('bin/a2ui-lab-dev'), ['serve'], { env, stdio: 'inherit' }),
   spawn('npm', ['run', 'dev', '--prefix', 'web'], { env, stdio: 'inherit' }),
 ]
 let stopping = false

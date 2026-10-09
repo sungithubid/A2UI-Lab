@@ -1,10 +1,8 @@
 import { describe, it, expect, vi } from 'vitest'
 import { render, screen } from '@testing-library/react'
-import userEvent from '@testing-library/user-event'
 import i18n, { detectLanguage, changeLanguage, languageKey } from './i18n'
 import { en, zhCN } from './locales'
-import { NoteForm } from '@/features/notes/note-form'
-import { APIError, errorMessage } from './api'
+import { ErrorState } from '@/components/states'
 describe('language preferences', () => {
   it('honors saved choice, then supported browser languages in preference order', () => {
     expect(detectLanguage('en', ['zh-CN'])).toBe('en')
@@ -36,16 +34,10 @@ describe('language preferences', () => {
       write.mockRestore()
     }
   })
-  it('localizes validation and API errors', async () => {
+  it('localizes the retained shared error state', async () => {
     await i18n.changeLanguage('zh-CN')
-    const save = vi.fn()
-    render(<NoteForm onSave={save} onCancel={vi.fn()} pending={false} error={null} />)
-    await userEvent.click(screen.getByRole('button', { name: '保存笔记' }))
-    expect(await screen.findByRole('alert')).toHaveTextContent('请为笔记填写标题')
-    expect(save).not.toHaveBeenCalled()
-    await changeLanguage('en')
-    expect(screen.getByRole('alert')).toHaveTextContent('Give your note a title')
-    await changeLanguage('zh-CN')
-    expect(errorMessage(new APIError('internal details', 403))).toBe('你没有执行此操作的权限。')
+    render(<ErrorState error={new Error('Test error')} retry={() => {}} />)
+    expect(screen.getByRole('alert')).toHaveTextContent('Test error')
+    expect(screen.getByRole('button', { name: '重试' })).toBeInTheDocument()
   })
 })

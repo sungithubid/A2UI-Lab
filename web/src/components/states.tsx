@@ -7,7 +7,7 @@ export function Loading() {
   return (
     <div role="status" className="flex items-center gap-3 py-16 text-muted-foreground">
       <LoaderCircle className="size-5 animate-spin" />
-      {t('Loading your workspace\u2026')}
+      {t('Loading experiment…')}
     </div>
   )
 }

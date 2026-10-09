@@ -1,0 +1,191 @@
+package lab
+
+import (
+	"context"
+	"fmt"
+	"log/slog"
+	"strings"
+	"sync"
+	"time"
+
+	"github.com/sungithubid/A2UI-Lab/internal/a2ui"
+	"github.com/sungithubid/A2UI-Lab/internal/action"
+	"github.com/sungithubid/A2UI-Lab/internal/agent"
+	"github.com/sungithubid/A2UI-Lab/internal/event"
+	"github.com/sungithubid/A2UI-Lab/internal/platform/fault"
+	"github.com/sungithubid/A2UI-Lab/internal/presentation"
+)
+
+type Scenario struct {
+	ID          string `json:"id"`
+	Name        string `json:"name"`
+	Description string `json:"description"`
+}
+
+func Scenarios() []Scenario {
+	return []Scenario{
+		{"server-health", "Server health", "Text, tool call, progress, result, bound card and a View errors action."},
+		{"streaming-text", "Streaming text", "Deterministic incremental text without external services."},
+		{"tool-error", "Tool error", "An explicit tool failure that remains inspectable and replayable."},
+	}
+}
+
+type Create struct {
+	Prompt     string `json:"prompt" minLength:"1" maxLength:"2000"`
+	ScenarioID string `json:"scenarioId" enum:"server-health,streaming-text,tool-error"`
+}
+type Service struct {
+	repo   *Repository
+	agent  agent.Agent
+	ctx    context.Context
+	cancel context.CancelFunc
+	wg     sync.WaitGroup
+	mu     sync.Mutex
+	closed bool
+	active int
+	log    *slog.Logger
+}
+
+func NewService(repo *Repository, a agent.Agent, log *slog.Logger) *Service {
+	ctx, cancel := context.WithCancel(context.Background())
+	return &Service{repo: repo, agent: a, ctx: ctx, cancel: cancel, log: log}
+}
+func (s *Service) Close() { s.mu.Lock(); s.closed = true; s.cancel(); s.mu.Unlock(); s.wg.Wait() }
+func (s *Service) Create(ctx context.Context, in Create) (Run, error) {
+	in.Prompt = strings.TrimSpace(in.Prompt)
+	valid := false
+	for _, v := range Scenarios() {
+		if in.ScenarioID == v.ID {
+			valid = true
+		}
+	}
+	if !valid || in.Prompt == "" || len(in.Prompt) > 2000 {
+		return Run{}, fmt.Errorf("%w: prompt and known scenario required", fault.ErrInvalid)
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.closed || s.active >= 8 {
+		return Run{}, fmt.Errorf("%w: runtime unavailable or busy", fault.ErrConflict)
+	}
+	r, err := s.repo.Create(ctx, in.Prompt, in.ScenarioID, string(a2ui.Version))
+	if err != nil {
+		return r, err
+	}
+	err = s.repo.Append(ctx, r.ID, []event.Message{event.New("run.started", map[string]any{"scenarioId": in.ScenarioID}), event.New("user.message", map[string]any{"text": in.Prompt})}, "")
+	if err != nil {
+		return r, err
+	}
+	s.wg.Add(1)
+	s.active++
+	go func() { defer s.wg.Done(); defer func() { s.mu.Lock(); s.active--; s.mu.Unlock() }(); s.execute(r, in) }()
+	return s.repo.Get(ctx, r.ID)
+}
+func protocolMessage(m a2ui.Message) event.Message {
+	if err := a2ui.Validate(m); err != nil {
+		return event.New("validation.error", map[string]any{"message": err.Error(), "incoming": m})
+	}
+	return event.New("a2ui.message", m)
+}
+func (s *Service) execute(r Run, in Create) {
+	ctx, cancel := context.WithTimeout(s.ctx, 20*time.Second)
+	defer cancel()
+	status := "completed"
+	defer func() {
+		if ctx.Err() != nil {
+			status = "interrupted"
+		}
+		finalCtx, c := context.WithTimeout(context.Background(), 3*time.Second)
+		defer c()
+		if err := s.repo.Append(finalCtx, r.ID, []event.Message{event.New("run."+status, map[string]any{})}, status); err != nil {
+			s.log.Error("finish run", "run_id", r.ID, "error", err)
+		}
+	}()
+	var semantic presentation.Presenter
+	var protocol a2ui.Presenter
+	if err := s.repo.Append(ctx, r.ID, []event.Message{protocolMessage(protocol.Start())}, ""); err != nil {
+		status = "failed"
+		return
+	}
+	stream, err := s.agent.Run(ctx, agent.Request{Prompt: in.Prompt, ScenarioID: in.ScenarioID})
+	if err != nil {
+		status = "failed"
+		if e := s.repo.Append(ctx, r.ID, []event.Message{event.New("error.occurred", event.ErrorOccurred{Code: "agent_start", Message: err.Error()})}, ""); e != nil {
+			s.log.Error("persist agent error", "error", e)
+		}
+		return
+	}
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case m, ok := <-stream:
+			if !ok {
+				return
+			}
+			if m.Kind == "error.occurred" {
+				status = "failed"
+			}
+			batch := []event.Message{m}
+			for _, view := range semantic.Present(m) {
+				batch = append(batch, event.New("presentation.event", view))
+				for _, msg := range protocol.Render(view) {
+					batch = append(batch, protocolMessage(msg))
+				}
+			}
+			if err = s.repo.Append(ctx, r.ID, batch, ""); err != nil {
+				s.log.Error("persist event", "run_id", r.ID, "error", err)
+				status = "failed"
+				return
+			}
+		}
+	}
+}
+func (s *Service) Get(ctx context.Context, id string) (Run, error) { return s.repo.Get(ctx, id) }
+func (s *Service) List(ctx context.Context, offset int) ([]Run, error) {
+	if offset < 0 {
+		return nil, fault.ErrInvalid
+	}
+	return s.repo.List(ctx, offset)
+}
+func (s *Service) Events(ctx context.Context, id string, after int64) ([]event.Event, error) {
+	if after < 0 {
+		return nil, fault.ErrInvalid
+	}
+	return s.repo.Events(ctx, id, after)
+}
+func (s *Service) Delete(ctx context.Context, id string) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.repo.Delete(ctx, id)
+}
+func (s *Service) Action(ctx context.Context, id string, a action.Envelope) (Run, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	r, err := s.repo.Get(ctx, id)
+	if err != nil {
+		return r, err
+	}
+	result, err := action.Route(a, id, r.Status == "completed" && r.ScenarioID == "server-health")
+	if err != nil {
+		return r, err
+	}
+	events, err := s.repo.Events(ctx, id, 0)
+	if err != nil {
+		return r, err
+	}
+	for _, e := range events {
+		if e.Kind == "action.completed" {
+			return r, nil
+		}
+	}
+	view := (&presentation.Presenter{}).Present(result)[0]
+	batch := []event.Message{event.New("action.received", a), result, event.New("presentation.event", view)}
+	for _, message := range a2ui.ActionResult(view) {
+		batch = append(batch, protocolMessage(message))
+	}
+
+	if err = s.repo.Append(ctx, id, batch, ""); err != nil {
+		return r, err
+	}
+	return s.repo.Get(ctx, id)
+}
