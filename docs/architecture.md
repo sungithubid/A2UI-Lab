@@ -85,3 +85,9 @@ The request inspector defaults to a Chat Completions role/content messages previ
 It is derived from the immutable Mock snapshot, with UI facts retained in their
 assistant turn and runtime metadata shown separately. No provider is configured;
 see ADR 0010 for the display-only boundary and malformed-input diagnostics.
+
+Plan decisions follow the same persisted waiting_input/action lifecycle as forms.
+The semantic decision.required payload owns candidate definitions; action validation
+reads them from the run log. LabChoice renders immediate candidate confirmation and
+custom input, while the server atomically persists the resolved choice and locked
+snapshot. No new database schema or long-lived Agent worker is introduced. See ADR 0011.

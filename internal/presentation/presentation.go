@@ -30,6 +30,8 @@ func (p *Presenter) Present(e event.Message) []Model {
 		return []Model{{Kind: "image-row", ID: fmt.Sprintf("resource-%v", e.Payload["index"]), Data: e.Payload["resource"].(map[string]any)}}
 	case "input.required":
 		return []Model{{Kind: "form", ID: "ticket-form", Data: e.Payload}}
+	case "decision.required":
+		return []Model{{Kind: "choice", ID: "plan-decision", Data: e.Payload}}
 	case "approval.required":
 		return []Model{{Kind: "approval", ID: "deployment-confirmation", Data: e.Payload}}
 	case "tool.completed":

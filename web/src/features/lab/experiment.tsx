@@ -272,7 +272,7 @@ export function Experiment({ id, onRun }: { id: string; onRun: (id: string) => v
                   {cursor !== null
                     ? 'Replay is read-only. Choose Live to continue.'
                     : waiting
-                      ? 'Submit the form or resolve the decision before continuing.'
+                      ? 'Submit the form or confirm your choice before continuing.'
                       : !complete
                         ? 'The Agent is responding…'
                         : 'Mock uses saved history. Choose a scenario for the next turn.'}

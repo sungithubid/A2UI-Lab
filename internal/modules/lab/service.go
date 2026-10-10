@@ -33,6 +33,7 @@ func Scenarios() []Scenario {
 		{"image-card", "Image card · resource discovery", "An illustrated recommendation linking to official documentation."},
 		{"image-list", "Image list · search results", "Three streaming results with a thumbnail on the left and text on the right."},
 		{"support-form", "Form · support ticket", "Collect details, validate input and persist a local demo ticket."},
+		{"plan-decision", "Decision · implementation plan", "Compare recommended and alternative plans, or enter your own choice."},
 		{"deployment-approval", "Confirmation · staging deployment", "Pause for human approval or rejection before a simulated deployment."},
 	}
 }
@@ -41,7 +42,7 @@ type Create struct {
 	ConversationID string `json:"conversationId,omitempty" maxLength:"100"`
 	ParentRunID    string `json:"parentRunId,omitempty" maxLength:"100"`
 	Prompt         string `json:"prompt" minLength:"1" maxLength:"2000"`
-	ScenarioID     string `json:"scenarioId" enum:"server-health,streaming-text,tool-error,image-card,image-list,support-form,deployment-approval"`
+	ScenarioID     string `json:"scenarioId" enum:"server-health,streaming-text,tool-error,image-card,image-list,support-form,deployment-approval,plan-decision"`
 }
 type worker struct {
 	cancel context.CancelFunc
@@ -245,7 +246,7 @@ func (s *Service) execute(parent context.Context, r Run, req agent.Request) {
 				status = "failed"
 				return
 			}
-			if m.Kind == "input.required" || m.Kind == "approval.required" {
+			if m.Kind == "input.required" || m.Kind == "approval.required" || m.Kind == "decision.required" {
 				status = "waiting_input"
 			}
 			if m.Kind == "error.occurred" {
@@ -298,11 +299,25 @@ func (s *Service) Action(ctx context.Context, id string, a action.Envelope) (Run
 	if history[len(history)-1].ID != id {
 		return r, fmt.Errorf("%w: actions on earlier turns are read-only", fault.ErrConflict)
 	}
-	result, err := action.Route(a, id, r.ScenarioID)
+	events, err := s.repo.AllEvents(ctx, id)
 	if err != nil {
 		return r, err
 	}
-	events, err := s.repo.Events(ctx, id, 0)
+	var question *event.ChoiceRequired
+	for _, e := range events {
+		if e.Kind == "decision.required" {
+			data, err := json.Marshal(e.Payload)
+			if err != nil {
+				return r, err
+			}
+			var q event.ChoiceRequired
+			if err = json.Unmarshal(data, &q); err != nil {
+				return r, err
+			}
+			question = &q
+		}
+	}
+	result, err := action.Route(a, id, r.ScenarioID, question)
 	if err != nil {
 		return r, err
 	}

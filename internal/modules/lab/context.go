@@ -46,7 +46,7 @@ func (s *Service) buildRequest(ctx context.Context, in Create, history []Run) (a
 			}
 			var fact any
 			switch e.Kind {
-			case "tool.completed", "resource.recommended", "resource.found", "approval.required", "approval.resolved", "input.required", "error.occurred":
+			case "tool.completed", "resource.recommended", "resource.found", "approval.required", "approval.resolved", "decision.required", "decision.resolved", "input.required", "error.occurred":
 				fact = e.Payload
 			case "ticket.created":
 				fact = map[string]any{"result": "Support ticket created locally; contact fields omitted"}

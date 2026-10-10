@@ -1,4 +1,4 @@
-import { ImageCard, FormCard, ApprovalCard } from './interactive'
+import { ImageCard, FormCard, ApprovalCard, ChoiceCard } from './interactive'
 import { Component, type ReactNode } from 'react'
 import { Button } from '@/components/ui/button'
 import { object, type Node, type Surface, type ProtocolState } from '@/lib/a2ui'
@@ -20,6 +20,7 @@ export const registry: Record<string, (p: Props) => ReactNode> = {
   LabImageCard: ImageCard,
   LabForm: FormCard,
   LabApproval: ApprovalCard,
+  LabChoice: ChoiceCard,
   Text: ({ node, surface }) => <p className="render-text">{text(node, surface)}</p>,
   Column: ({ node, child }) => (
     <div className="render-column">

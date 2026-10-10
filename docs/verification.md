@@ -48,3 +48,13 @@ Request-preview coverage verifies role/content ordering, Chinese text preservati
 UI fact placement in assistant turns, prompt deduplication, immutable source snapshots,
 and diagnostics for malformed or unmatched context. Browser tests compare the
 expanded original snapshot with persisted events and restore the preview on reload.
+
+Plan-decision tests cover recommended/alternative/custom choices, blank and oversized
+input, unknown IDs and forged labels, pending-state restoration with a replacement
+service, concurrent identical retries, changed-choice conflicts, read-only protocol
+snapshots, and decision facts in follow-up context. Browser coverage verifies all
+three paths, reload, event-identical replay, Trace action data and mobile overflow.
+
+Inline choice-input coverage verifies that option 3 contains the editable textarea
+without an expansion step, uses stable English labels after confirmation, and
+restores submitted text as read-only during reload/replay.

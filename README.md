@@ -10,7 +10,7 @@ A local engineering playground for streaming Agent UIs: run deterministic scenar
 
 - **Zero-Config & Standalone**: Pure Go single binary embedding React assets and goose SQLite migrations. Runs instantly without external API keys, accounts, or cloud dependencies.
 - **Hybrid Multi-Turn Chat & Traces**: User bubbles on the right, Agent replies on the left, with streaming Markdown and interleaved A2UI surfaces. Backend-owned history and local traces expose context construction, actual Mock requests, tools, and actions.
-- **Deterministic Scenario Ladder**: 7 built-in progressive scenarios covering streaming text, tool calling, rich media, and human-in-the-loop approvals.
+- **Deterministic Scenario Ladder**: 8 built-in progressive scenarios covering streaming text, tool calling, rich media, and human-in-the-loop approvals.
 - **End-to-End Protocol Observability**: Protocol Inspector and Timeline provide real-time inspection of raw JSON envelopes, component hierarchies, data model bindings, and sequential events.
 - **Event-Sourced Deterministic Replay**: Every UI state is fully explainable by a persisted event prefix. Step, Reset, and Play reconstruct state entirely offline without LLM invocations.
 - **Secure Sandboxed Interaction**: Controlled rendering guarantees incoming code/HTML is never dynamically executed. Human-in-the-loop forms and approvals persist cleanly across restarts in `waiting_input`.
@@ -59,7 +59,7 @@ Ordinary prompts and local form events remain stored in SQLite; submitted contac
 
 ## Built-in Scenarios
 
-Built with 7 progressive scenarios illustrating the Agent UI evolution ladder (see [Scenario Ladder](docs/scenarios.md)):
+Built with 8 progressive scenarios illustrating the Agent UI evolution ladder (see [Scenario Ladder](docs/scenarios.md)):
 
 - **Streaming Text (`streaming-text`)**: Buffered Mock chunks rendered as Markdown lists, tables, and code blocks; text-only replies create no A2UI surface.
 - **Server Health (`server-health`)**: Tool calling, execution progress polling, bound status cards, and post-action dispatching.
@@ -67,6 +67,7 @@ Built with 7 progressive scenarios illustrating the Agent UI evolution ladder (s
 - **Linked Image Card (`image-card`)**: Safe bundled illustration rendering and external documentation links opening in new tabs.
 - **Illustrated Resource List (`image-list`)**: Progressively appended resource components with left-image/right-text layouts.
 - **Support Ticket Form (`support-form`)**: Controlled interactive forms with field validation and event-logged submissions in `waiting_input`.
+- **Plan Decision (`plan-decision`)**: Compare a recommended plan and an alternative; click a plan to confirm immediately, or type directly inside option 3 and submit up to 500 characters. New runs use English scenario copy; saved historical events retain their original text. Pending decisions survive restarts; confirmed selections are read-only and enter subsequent conversation context.
 - **Deployment Confirmation (`deployment-approval`)**: High-risk action human-in-the-loop (HITL) approval/rejection with idempotent decision handling.
 
 > **Note**: This first slice focuses on deterministic presentation. Eino, real model output, interrupt/resume, and raw JSON editors are planned for future milestones.
@@ -152,5 +153,6 @@ make verify   # Full gate check
 - [Persisted Human Interaction (ADR 0008)](docs/decisions/0008-persisted-human-interaction.md)
 - [Hybrid Conversations and Traces (ADR 0009)](docs/decisions/0009-hybrid-conversations-and-traces.md)
 - [Chat Completions Request Preview (ADR 0010)](docs/decisions/0010-chat-request-preview.md)
+- [Persisted Plan Decisions (ADR 0011)](docs/decisions/0011-persisted-plan-decisions.md)
 - [Development Workflow](docs/development.md)
 - [Verification Baseline](docs/verification.md)

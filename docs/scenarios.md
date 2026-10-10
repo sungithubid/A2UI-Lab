@@ -1,6 +1,6 @@
 # A2UI Lab 场景能力与架构演进阶梯 (Evolution Ladder)
 
-本文档系统性说明 A2UI Lab 中内置的 **7 个核心场景** 所演示的能力、底层架构机制，以及从简单流式到复杂双向人机协同的 **设计哲学与演进阶梯（Evolution Ladder）**。
+本文档系统性说明 A2UI Lab 中内置的 **8 个核心场景** 所演示的能力、底层架构机制，以及从简单流式到复杂双向人机协同的 **设计哲学与演进阶梯（Evolution Ladder）**。
 
 ---
 
@@ -35,14 +35,15 @@ SSE → 聊天 / Trace / Protocol Inspector → 事件前缀重放
 
 ---
 
-## 二、七大场景的演进阶梯 (The Evolution Ladder)
+## 二、八大场景的演进阶梯 (The Evolution Ladder)
 
-项目内置的 7 个场景绝非零散用例，而是沿着 Agent UI 复杂度梯次递进的 **演进阶梯**：
+项目内置的 8 个场景绝非零散用例，而是沿着 Agent UI 复杂度梯次递进的 **演进阶梯**：
 
 ```mermaid
 flowchart TD
     subgraph L4 ["Level 4: 人机协同与双向闭环 (HITL & Interactive Loop)"]
         S6["support-form (动态模式表单与数据回填)"]
+        S8["plan-decision (推荐方案、备选与手动输入确认)"]
         S7["deployment-approval (高危动作审批、打断/恢复与多 Surface)"]
     end
 
@@ -168,7 +169,19 @@ flowchart TD
 
 ---
 
-## 三、七大场景能力横向对比矩阵
+### 8. `plan-decision`（方案决策确认）
+
+![推荐方案、备选与手动输入](images/plan-decision.png)
+
+- **Prompt 示例**：`Analyze the API upgrade options and ask me to choose`
+- **体验**：Agent 说明分析结论，场景文案统一使用英文。卡片提供“Incremental migration（Recommended）”“Full rebuild”与“Custom plan”。前两项点击即确认；方案3内直接输入方案或想法，点击该项内的“Confirm custom plan”提交。
+- **语义与协议**：`decision.required` 携带候选项 ID、标题、说明与推荐标记，展示层映射为 `LabChoice`。服务端从持久化候选项白名单校验 `choose_plan`，并记录 `decision.resolved`。待选择时进入 `waiting_input`，确认后原卡片只读并出现结果 Surface。
+- **持久化与上下文**：重启后仍可选择；相同请求重试幂等，冲突选择被拒绝。手动内容最多 500 个字符，提交后保存并进入后续模型语义上下文；未提交草稿仅保存在当前页面。Trace 展示原始 Action 与结果，回放不触发提交。
+- **运行范围**：当前为确定性 Mock，仅记录确认结果，不执行真正的代码改造或外部工具。
+
+---
+
+## 三、八大场景能力横向对比矩阵
 
 | 场景 ID | 演示名称 | 核心能力层级 | 主要 UI 组件 | Surface 数量 | 交互类型 | 关键架构特征 |
 | :--- | :--- | :---: | :--- | :---: | :---: | :--- |
@@ -178,6 +191,7 @@ flowchart TD
 | **`image-card`** | 图文卡片 | **L3** | Markdown, `LabImageCard` | 1 | 静态富媒体 | 结构化领域事件、邻接表组件树动态扩展 |
 | **`image-list`** | 资源列表 | **L3** | Markdown, `LabImageCard` (多实例) | 1 | 渐进式流式 | 搜索结果逐一到达渲染，`layout: "row"` 组件复用 |
 | **`deployment-approval`**| 部署审批 | **L4** | `LabApproval`, `Text` | **2** | **双向中断/恢复** | HITL 挂起唤醒、意图路由白名单、卡片只读锁定 |
+| **`plan-decision`** | 方案决策 | **L4** | `LabChoice` | **2** | 点击确认 / 手动输入 | 服务端候选项校验、幂等选择、后续会话上下文 |
 | **`support-form`** | 工单表单 | **L4** | `LabForm`, `Text` | **2** | **双向数据收集** | Schema 驱动表单、服务端深度校验、表单内容持久化反填 |
 
 ---

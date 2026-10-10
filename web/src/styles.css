@@ -1076,3 +1076,134 @@ input:focus-visible {
   font-size: 12px;
   font-weight: 600;
 }
+
+.choice-options {
+  display: grid;
+  gap: 10px;
+  margin: 16px 0;
+}
+.choice-option {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  width: 100%;
+  padding: 14px;
+  border: 1px solid #dce5dd;
+  border-radius: 10px;
+  text-align: left;
+  background: #fff;
+  color: #26372f;
+  cursor: pointer;
+  transition:
+    background 0.15s,
+    border-color 0.15s;
+}
+.choice-option:not(:disabled):hover {
+  background: #f1f6f0;
+  border-color: #6b957a;
+}
+.choice-option:focus-visible {
+  outline: 2px solid #356c53;
+  outline-offset: 2px;
+}
+.choice-option:disabled {
+  cursor: default;
+}
+.choice-option:disabled:not(.choice-selected) {
+  opacity: 0.65;
+}
+.choice-option.choice-selected {
+  background: #edf5eb;
+  border-color: #5b8d69;
+}
+.choice-number {
+  display: grid;
+  place-items: center;
+  flex: 0 0 24px;
+  width: 24px;
+  height: 24px;
+  border-radius: 6px;
+  background: #edf2eb;
+  font: 12px/1 monospace;
+}
+.choice-copy {
+  flex: 1;
+  min-width: 0;
+  display: grid;
+  gap: 7px;
+  overflow-wrap: anywhere;
+}
+.choice-title {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  font-size: 13px;
+  font-weight: 600;
+}
+.choice-recommended {
+  font-size: 10px;
+  padding: 2px 7px;
+  border-radius: 4px;
+  background: #dfeeda;
+  color: #38603c;
+}
+.choice-description {
+  font-size: 12px;
+  line-height: 1.7;
+  color: #738078;
+}
+.choice-check {
+  color: #356b47;
+  font-size: 11px;
+  flex-shrink: 0;
+}
+.choice-custom-option {
+  cursor: default;
+}
+.choice-custom-option:focus-within {
+  border-color: #6b957a;
+  background: #f1f6f0;
+}
+.choice-custom-option textarea {
+  width: 100%;
+  min-width: 0;
+  padding: 4px 0;
+  border: 0;
+  background: transparent;
+  font: inherit;
+  font-size: 12px;
+  line-height: 1.7;
+  resize: vertical;
+}
+.choice-custom-option textarea:focus-visible {
+  outline: none;
+}
+.choice-custom-option textarea:disabled {
+  color: #738078;
+}
+.choice-custom-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.choice-custom-actions > span {
+  font-size: 10px;
+  color: #738078;
+}
+.choice-hint {
+  color: #7d8a80;
+  font-size: 11px;
+  margin-top: 12px;
+}
+@media (max-width: 650px) {
+  .choice-option {
+    flex-wrap: wrap;
+    padding: 12px;
+  }
+  .choice-check {
+    margin-left: 34px;
+  }
+}

@@ -27,6 +27,14 @@ func interactiveScenario(id string) ([]event.Message, bool) {
 		return append(out, end), true
 	case "support-form":
 		return []event.Message{start, intro("Describe your issue and submit a local demo support ticket. No email is sent."), event.New("input.required", map[string]any{"purpose": "support-ticket", "title": "Create a support ticket", "description": "Demo ticket saved only in this run. No external service or email is used."}), event.New("agent.waiting", map[string]any{"reason": "form submission"})}, true
+	case "plan-decision":
+		return []event.Message{start, intro("I have analyzed the API upgrade. There are two options for your confirmation. Choose a plan below, or enter your own approach."), event.New("decision.required", event.ChoiceRequired{
+			Title: "Choose an API upgrade plan", Description: "Incremental migration reduces compatibility risk. A full rebuild offers a clean start with a larger migration effort.",
+			Options: []event.ChoiceOption{
+				{ID: "incremental", Title: "Incremental migration", Description: "Keep existing interfaces and migrate modules in stages, with validation and rollback at each step.", Recommended: true},
+				{ID: "rebuild", Title: "Full rebuild", Description: "Rebuild the interfaces and call chain together, then migrate in one release after thorough integration testing."},
+			}, AllowCustom: true, CustomMaxLength: 500,
+		}), event.New("agent.waiting", map[string]any{"reason": "plan selection"})}, true
 	case "deployment-approval":
 		return []event.Message{start, intro("The staging deployment is prepared. I will wait for your decision before continuing."), event.New("approval.required", map[string]any{"title": "Deploy release v2.4.0?", "description": "Review this simulated deployment. Approval records a mock deployment; rejection stops it. No infrastructure is changed.", "operation": "Deploy v2.4.0", "environment": "Staging", "service": "checkout-api"}), event.New("agent.waiting", map[string]any{"reason": "human approval"})}, true
 	}

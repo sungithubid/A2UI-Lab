@@ -146,3 +146,88 @@ export function ApprovalCard({ node, disabled, action }: InteractiveProps) {
     </section>
   )
 }
+
+export function ChoiceCard({ node, disabled, action }: InteractiveProps) {
+  const value = object(node.value) ? node.value : {}
+  const options = value.options as import('@/lib/interactive').ChoiceOption[]
+  const selected = typeof value.selectedChoiceId === 'string' ? value.selectedChoiceId : ''
+  const [draft, setDraft] = useState(typeof value.customText === 'string' ? value.customText : '')
+  const inputId = useId()
+  const locked = disabled || node.disabled === true
+  return (
+    <section className="render-card choice-card" aria-label="Plan decision">
+      <p className="eyebrow">PLAN DECISION · MOCK</p>
+      <h3>{String(value.title)}</h3>
+      <p className="form-description">{String(value.description)}</p>
+      <div className="choice-options">
+        {options.map((option, index) => (
+          <button
+            key={option.id}
+            type="button"
+            className={`choice-option ${selected === option.id ? 'choice-selected' : ''}`}
+            disabled={locked}
+            aria-pressed={selected === option.id}
+            onClick={() => {
+              if (!locked) action(node, { choiceId: option.id })
+            }}
+          >
+            <span className="choice-number">{index + 1}</span>
+            <span className="choice-copy">
+              <span className="choice-title">
+                {option.title}
+                {option.recommended && <span className="choice-recommended">Recommended</span>}
+              </span>
+              <span className="choice-description">{option.description}</span>
+            </span>
+            {selected === option.id && <span className="choice-check">✓ Confirmed</span>}
+          </button>
+        ))}
+        {value.allowCustom === true && (
+          <form
+            className={`choice-option choice-custom-option ${selected === 'custom' ? 'choice-selected' : ''}`}
+            onSubmit={(e) => {
+              e.preventDefault()
+              if (!locked && draft.trim()) action(node, { choiceId: 'custom', text: draft.trim() })
+            }}
+          >
+            <span className="choice-number">{options.length + 1}</span>
+            <div className="choice-copy">
+              <div className="choice-title">
+                <label htmlFor={inputId}>Custom plan</label>
+                {selected === 'custom' && <span className="choice-check">✓ Confirmed</span>}
+              </div>
+              <textarea
+                id={inputId}
+                value={node.disabled ? String(value.customText ?? '') : draft}
+                onChange={(e) => setDraft(e.target.value)}
+                rows={2}
+                maxLength={Number(value.customMaxLength)}
+                required
+                disabled={locked}
+                placeholder="Enter your plan or idea here…"
+              />
+              {!node.disabled && (
+                <div className="choice-custom-actions">
+                  <span>Up to {Number(value.customMaxLength)} characters</span>
+                  <Button type="submit" size="sm" disabled={locked || !draft.trim()}>
+                    Confirm custom plan
+                  </Button>
+                </div>
+              )}
+            </div>
+          </form>
+        )}
+      </div>
+      {node.disabled ? (
+        <p role="status" className="decision-receipt">
+          {'Confirmed: '}
+          {selected === 'custom'
+            ? 'Custom plan'
+            : options.find((option) => option.id === selected)?.title}
+        </p>
+      ) : (
+        <p className="choice-hint">Click a plan to confirm, or enter and submit your own.</p>
+      )}
+    </section>
+  )
+}

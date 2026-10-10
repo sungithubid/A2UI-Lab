@@ -10,7 +10,7 @@
 
 - **零依赖与开箱即用**：纯 Go 单二进制文件，内嵌 React 前端静态资产与 Goose 数据库迁移，本地无外部依赖即可完整运行。
 - **混合多轮聊天与 Trace**：右侧用户气泡、左侧 Agent 输出；Markdown 增量文本与 A2UI 组件交错展示。后端保存会话历史，Trace 展示上下文构建、实际 Mock 请求、工具与交互过程。
-- **渐进式场景阶梯**：内置 7 个递进复杂度场景，涵盖流式文本、工具调用观测、富媒体展示以及人机交互协同（HITL）。
+- **渐进式场景阶梯**：内置 8 个递进复杂度场景，涵盖流式文本、工具调用观测、富媒体展示以及人机交互协同（HITL）。
 - **端到端协议可观测性**：集成 Protocol Inspector 和 Timeline，实时查看原始协议 JSON、序号、时间戳、组件树结构与数据模型状态。
 - **事件溯源确定性重放**：界面任意时刻状态皆由已持久化的历史事件前缀解释。提供 Reset / Step / Play 逐步重放机制，重放过程完全离线计算，绝不重新调用外部 Agent 或 LLM。
 - **安全沙箱与人机交互**：前端受控注册表映射渲染，绝不动态执行传入代码；支持工单表单与高危操作审批，在 `waiting_input` 状态下实现跨进程持久化等待。
@@ -59,7 +59,7 @@ make dev
 
 ## 内置场景
 
-项目内置 7 个由浅入深的代表性场景（详见 [场景演进阶梯](docs/scenarios.md)）：
+项目内置 8 个由浅入深的代表性场景（详见 [场景演进阶梯](docs/scenarios.md)）：
 
 - **流式文本 (`streaming-text`)**：Mock 文本分片经轻量缓冲输出 Markdown，包含列表、表格与代码块；纯文本不创建 A2UI Surface。
 - **服务器健康 (`server-health`)**：工具调用执行、进度轮询、状态卡片数据绑定与事后交互 Action。
@@ -67,6 +67,7 @@ make dev
 - **可跳转图片卡片 (`image-card`)**：受控渲染内嵌静态插画，并在新标签页安全打开官方文档链接。
 - **左图右文资源列表 (`image-list`)**：基于数据模型驱动的多条目列表排版与动态树追加。
 - **支持工单表单 (`support-form`)**：字段格式前端校验，在 `waiting_input` 状态挂起并在提交后回填持久化。
+- **方案决策 (`plan-decision`)**：展示分析、推荐与备选方案，点击方案即确认；方案3内直接填写方案或想法（最多 500 字符），然后确认；新运行的场景文案统一为英文，已保存的历史文案保留原样。待决策状态跨重启恢复，确认后只读，结果进入后续对话上下文。
 - **部署确认 (`deployment-approval`)**：高危动作双向审批（批准/拒绝），批准后触发模拟执行，决策具备幂等性保护。
 
 > **说明**：当前切片聚焦于确定性 Presentation 呈现；Eino、真实大模型接入、Agent 中断/恢复和原始 JSON 编辑器为后续阶段规划。
@@ -153,5 +154,6 @@ make verify   # 全量门禁校验
 - [持久化交互架构决策 (ADR 0008)](docs/decisions/0008-persisted-human-interaction.md)
 - [混合聊天、上下文与 Trace 决策 (ADR 0009)](docs/decisions/0009-hybrid-conversations-and-traces.md)
 - [Chat Completions 请求预览决策 (ADR 0010)](docs/decisions/0010-chat-request-preview.md)
+- [方案决策交互 (ADR 0011)](docs/decisions/0011-persisted-plan-decisions.md)
 - [开发指南 (Development)](docs/development.md)
 - [验证规范 (Verification)](docs/verification.md)

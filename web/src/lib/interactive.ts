@@ -20,8 +20,9 @@ export type Field = {
   maxLength?: number
   options?: string[]
 }
+export type ChoiceOption = { id: string; title: string; description: string; recommended: boolean }
 export function interactiveError(raw: Node): string | undefined {
-  if (!['LabImageCard', 'LabForm', 'LabApproval'].includes(raw.component)) return
+  if (!['LabImageCard', 'LabForm', 'LabApproval', 'LabChoice'].includes(raw.component)) return
   const v = raw.value
   if (!object(v) || typeof v.title !== 'string' || !v.title || typeof v.description !== 'string')
     return 'Interactive component needs title and description'
@@ -35,6 +36,46 @@ export function interactiveError(raw: Node): string | undefined {
   }
   if (!object(raw.action) || !object(raw.action.event) || typeof raw.action.event.name !== 'string')
     return 'Interactive component needs an event action'
+  if (raw.component === 'LabChoice') {
+    if (
+      !Array.isArray(v.options) ||
+      v.options.length < 2 ||
+      v.options.length > 6 ||
+      typeof v.allowCustom !== 'boolean' ||
+      !Number.isSafeInteger(v.customMaxLength) ||
+      Number(v.customMaxLength) < 1 ||
+      Number(v.customMaxLength) > 2000
+    )
+      return 'Invalid choice question'
+    const ids = new Set<string>()
+    for (const option of v.options) {
+      if (
+        !object(option) ||
+        typeof option.id !== 'string' ||
+        !/^[a-z][a-z0-9_-]{0,63}$/.test(option.id) ||
+        option.id === 'custom' ||
+        ids.has(option.id) ||
+        typeof option.title !== 'string' ||
+        !option.title ||
+        typeof option.description !== 'string' ||
+        !option.description ||
+        typeof option.recommended !== 'boolean'
+      )
+        return 'Invalid or duplicate choice option'
+      ids.add(option.id)
+    }
+    if (raw.disabled) {
+      if (
+        typeof v.selectedChoiceId !== 'string' ||
+        (!ids.has(v.selectedChoiceId) && !(v.selectedChoiceId === 'custom' && v.allowCustom)) ||
+        typeof v.customText !== 'string' ||
+        (v.selectedChoiceId === 'custom' &&
+          (!v.customText.trim() || [...v.customText].length > Number(v.customMaxLength))) ||
+        (v.selectedChoiceId !== 'custom' && v.customText !== '')
+      )
+        return 'Invalid recorded choice'
+    } else if (v.selectedChoiceId !== undefined) return 'Unlocked choice cannot have a selection'
+  }
   if (raw.component === 'LabForm') {
     if (!Array.isArray(v.fields) || !v.fields.length || v.fields.length > 12)
       return 'Invalid form fields'

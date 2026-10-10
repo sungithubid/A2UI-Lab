@@ -50,3 +50,18 @@ type ErrorOccurred struct {
 	Code    string `json:"code"`
 	Message string `json:"message"`
 }
+
+// ChoiceRequired describes a semantic decision; it contains no rendering types.
+type ChoiceOption struct {
+	ID          string `json:"id"`
+	Title       string `json:"title"`
+	Description string `json:"description"`
+	Recommended bool   `json:"recommended"`
+}
+type ChoiceRequired struct {
+	Title           string         `json:"title"`
+	Description     string         `json:"description"`
+	Options         []ChoiceOption `json:"options"`
+	AllowCustom     bool           `json:"allowCustom"`
+	CustomMaxLength int            `json:"customMaxLength"`
+}

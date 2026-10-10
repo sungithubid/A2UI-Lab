@@ -92,6 +92,7 @@ export function LabPage() {
                     'image-card': 'Recommend an Agent UI resource',
                     'image-list': 'Find resources for building a local Agent UI lab',
                     'support-form': 'Help me open a support ticket',
+                    'plan-decision': 'Analyze the API upgrade options and ask me to choose',
                     'deployment-approval': 'Prepare a staging deployment for my review',
                   }[next],
                 )

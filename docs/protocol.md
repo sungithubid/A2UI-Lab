@@ -68,6 +68,7 @@ Capabilities are scoped to the persisted scenario and its lifecycle:
 | --- | --- | --- | --- | --- |
 | server-health | view-errors | view_errors | empty object | completed |
 | support-form | ticket-form | submit_ticket | name, email, summary, priority | waiting_input |
+| plan-decision | plan-decision | choose_plan | choiceId, plus text for custom | waiting_input |
 | deployment-approval | deployment-confirmation | decide_deployment | decision: approve or reject | waiting_input |
 
 All are category `tool`. Path/body run IDs and main surface must match. Server-side
@@ -88,9 +89,13 @@ New additive Lab catalog components:
   never submits a server action. Only `/scenario-images/[a-z0-9-]+.svg` images load.
 - LabForm: bounded fields of type text/email/textarea/select and an event action.
   Draft edits are local; submitted values and disabled state are protocol snapshots.
+- LabChoice: 2–6 candidate options with stable IDs, title/description/recommended,
+  allowCustom and customMaxLength. Clicking a candidate confirms it immediately.
+  Option 3 contains an always-visible inline textarea and confirmation button. Resolved snapshots keep all options plus
+  selectedChoiceId/customText and disabled=true.
 - LabApproval: explicit approve/reject choices, operation summary and saved decision.
 
-All three are custom Lab components, not additions to the official Basic Catalog.
+All four are custom Lab components, not additions to the official Basic Catalog.
 External URL schemes/credentials, malformed form definitions and unsafe field names
 are rejected by the renderer validator. Local illustrations require no external image
 service or CSP relaxation. Replay never submits a form or decision; it restores the
@@ -134,3 +139,21 @@ no model or sampling parameters are configured. Runtime fields, including scenar
 source IDs, textBuffer, adapter and externalCall, remain in the collapsed original
 snapshot. Persisted events and the actual Mock request contract are unchanged.
 See [ADR 0010](decisions/0010-chat-request-preview.md).
+
+## Plan decision lifecycle
+
+The Mock emits `decision.required` with semantic candidate options, then exits in
+`waiting_input`. Presentation maps this to a LabChoice component. The server reads
+persisted candidates before accepting `choose_plan`, never trusting client-supplied
+labels or options. Candidate submission is `{ "choiceId": "incremental" }` or
+`{ "choiceId": "rebuild" }`; custom submission is
+`{ "choiceId": "custom", "text": "My plan" }`. Custom text is trimmed, required,
+and limited to 500 Unicode characters in this scenario. Unexpected fields and
+unknown IDs are rejected without appending events.
+
+One transaction records action.received, decision.resolved, agent.resumed,
+action.completed, the locked original card, result surface, and run.completed.
+Identical retries append nothing; a different choice conflicts. Pending decisions
+survive process restarts. Replay never submits a decision. The chosen title and
+custom text are semantic context for the next turn; drafts remain browser-local.
+This Mock records a choice without running a real implementation or tool.

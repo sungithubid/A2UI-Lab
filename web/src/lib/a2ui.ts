@@ -26,6 +26,7 @@ export const catalog = [
   'LabImageCard',
   'LabForm',
   'LabApproval',
+  'LabChoice',
 ]
 export function applyMessage(state: ProtocolState, input: unknown, seq = 0): ProtocolState {
   const fail = (message: string): ProtocolState => ({

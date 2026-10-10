@@ -34,7 +34,8 @@
               "image-card",
               "image-list",
               "support-form",
-              "deployment-approval"
+              "deployment-approval",
+              "plan-decision"
             ],
             "type": "string"
           }

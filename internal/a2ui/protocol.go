@@ -82,7 +82,7 @@ func Validate(m Message) error {
 				if c.Child == "" {
 					return fmt.Errorf("component needs child")
 				}
-			case "LabImageCard", "LabForm", "LabApproval":
+			case "LabImageCard", "LabForm", "LabApproval", "LabChoice":
 				if err := validateInteractive(c); err != nil {
 					return err
 				}
@@ -154,6 +154,8 @@ func (p *Presenter) Render(m presentation.Model) []Message {
 		}
 	case "form":
 		c = ticketForm(nil, false)
+	case "choice":
+		c = choice(m.Data, false)
 	case "approval":
 		c = approval(m.Data, false)
 	case "health":
@@ -192,6 +194,11 @@ func ActionResult(view presentation.Model) []Message {
 	switch view.Data["action"] {
 	case "submit_ticket":
 		out = append(out, Message{Version: Version, UpdateComponents: &Components{SurfaceID: "main", Components: []Component{ticketForm(view.Data["result"], true)}}})
+	case "choose_plan":
+		result := view.Data["result"].(map[string]any)
+		data := cloneWith(result["question"].(map[string]any), "selectedChoiceId", result["choiceId"])
+		data["customText"] = result["text"]
+		out = append(out, Message{Version: Version, UpdateComponents: &Components{SurfaceID: "main", Components: []Component{choice(data, true)}}})
 	case "decide_deployment":
 		out = append(out, Message{Version: Version, UpdateComponents: &Components{SurfaceID: "main", Components: []Component{approval(map[string]any{"title": "Decision recorded", "description": view.Text, "decision": view.Data["result"].(map[string]any)["decision"]}, true)}}})
 	}

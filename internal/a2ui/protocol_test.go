@@ -43,3 +43,50 @@ func TestMalformedProtocol(t *testing.T) {
 		}
 	}
 }
+
+func TestChoiceProtocolRejectsIncompleteAndInvalidSelections(t *testing.T) {
+	question := event.ChoiceRequired{Title: "Choose", Description: "Analysis complete", Options: []event.ChoiceOption{{ID: "first", Title: "First", Description: "Incremental", Recommended: true}, {ID: "second", Title: "Second", Description: "Rebuild"}}, AllowCustom: true, CustomMaxLength: 500}
+	for _, change := range []func(*Component){
+		func(c *Component) { delete(c.Value.(map[string]any), "allowCustom") },
+		func(c *Component) { c.Value.(map[string]any)["customMaxLength"] = 0 },
+		func(c *Component) { c.Value.(map[string]any)["options"] = []any{} },
+		func(c *Component) {
+			v := c.Value.(map[string]any)
+			options := v["options"].([]any)
+			options[1] = options[0]
+		},
+		func(c *Component) {
+			delete(c.Value.(map[string]any)["options"].([]any)[0].(map[string]any), "recommended")
+		},
+		func(c *Component) { c.Value.(map[string]any)["selectedChoiceId"] = "first" },
+		func(c *Component) {
+			c.Disabled = true
+			v := c.Value.(map[string]any)
+			v["selectedChoiceId"] = "unknown"
+			v["customText"] = ""
+		},
+		func(c *Component) {
+			c.Disabled = true
+			v := c.Value.(map[string]any)
+			v["selectedChoiceId"] = "custom"
+			v["customText"] = " "
+		},
+	} {
+		c := choice(event.New("decision.required", question).Payload, false)
+		change(&c)
+		if err := Validate(Message{Version: Version, UpdateComponents: &Components{SurfaceID: "main", Components: []Component{c}}}); err == nil {
+			t.Fatal("invalid choice accepted", c)
+		}
+	}
+	for _, id := range []string{"first", "custom"} {
+		data := event.New("decision.required", question).Payload
+		data["selectedChoiceId"] = id
+		data["customText"] = ""
+		if id == "custom" {
+			data["customText"] = "My plan"
+		}
+		if err := Validate(Message{Version: Version, UpdateComponents: &Components{SurfaceID: "main", Components: []Component{choice(data, true)}}}); err != nil {
+			t.Fatal(err)
+		}
+	}
+}

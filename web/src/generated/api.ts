@@ -116,7 +116,7 @@ export interface components {
             parentRunId?: string;
             prompt: string;
             /** @enum {string} */
-            scenarioId: "server-health" | "streaming-text" | "tool-error" | "image-card" | "image-list" | "support-form" | "deployment-approval";
+            scenarioId: "server-health" | "streaming-text" | "tool-error" | "image-card" | "image-list" | "support-form" | "deployment-approval" | "plan-decision";
         };
         DeleteAllInputBody: {
             /**

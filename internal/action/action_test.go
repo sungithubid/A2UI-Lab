@@ -3,6 +3,8 @@ package action
 import (
 	"strings"
 	"testing"
+
+	"github.com/sungithubid/A2UI-Lab/internal/event"
 )
 
 func TestMalformedInteractiveActions(t *testing.T) {
@@ -16,11 +18,42 @@ func TestMalformedInteractiveActions(t *testing.T) {
 			a.Data[k] = v
 		}
 		change(&a)
-		if _, err := Route(a, "r", "support-form"); err == nil {
+		if _, err := Route(a, "r", "support-form", nil); err == nil {
 			t.Fatal("malformed action accepted", a)
 		}
 	}
-	if _, err := Route(valid, "r", "image-card"); err == nil {
+	if _, err := Route(valid, "r", "image-card", nil); err == nil {
 		t.Fatal("form allowed on image scenario")
+	}
+}
+
+func TestPlanActionUsesPersistedCandidatesAndValidatesCustomInput(t *testing.T) {
+	q := &event.ChoiceRequired{Options: []event.ChoiceOption{{ID: "server-defined", Title: "Server title"}}, AllowCustom: true, CustomMaxLength: 500}
+	a := Envelope{Version: 1, RunID: "r", SurfaceID: "main", ComponentID: "plan-decision", Category: "tool", Action: "choose_plan", Data: map[string]any{"choiceId": "server-defined"}}
+	result, err := Route(a, "r", "plan-decision", q)
+	if err != nil || result.Status != "completed" || result.Events[0].Payload["title"] != "Server title" {
+		t.Fatal(result, err)
+	}
+	for _, data := range []map[string]any{
+		{"choiceId": "invented"}, {"choiceId": true}, {"choiceId": "server-defined", "title": "Forged"},
+		{"choiceId": "custom"}, {"choiceId": "custom", "text": " "}, {"choiceId": "custom", "text": true},
+		{"choiceId": "custom", "text": strings.Repeat("字", 501)}, {"choiceId": "custom", "text": "Plan", "extra": 1},
+	} {
+		a.Data = data
+		if _, err := Route(a, "r", "plan-decision", q); err == nil {
+			t.Fatal("invalid plan accepted", data)
+		}
+	}
+	a.Data = map[string]any{"choiceId": "custom", "text": "  自定义方案  "}
+	result, err = Route(a, "r", "plan-decision", q)
+	if err != nil || result.Events[0].Payload["text"] != "自定义方案" {
+		t.Fatal(result, err)
+	}
+	q.AllowCustom = false
+	if _, err := Route(a, "r", "plan-decision", q); err == nil {
+		t.Fatal("custom choice was not disabled")
+	}
+	if _, err := Route(a, "r", "plan-decision", nil); err == nil {
+		t.Fatal("missing persisted question accepted")
 	}
 }

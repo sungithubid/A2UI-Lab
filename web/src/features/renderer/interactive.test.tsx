@@ -1,6 +1,6 @@
 import { render, screen, fireEvent } from '@testing-library/react'
 import { expect, it, vi } from 'vitest'
-import { ImageCard, FormCard, ApprovalCard } from './interactive'
+import { ImageCard, FormCard, ApprovalCard, ChoiceCard } from './interactive'
 import { interactiveError } from '@/lib/interactive'
 import { applyMessage, emptyState, replay, VERSION, CATALOG, type Node } from '@/lib/a2ui'
 const action = { event: { name: 'submit_ticket', context: {} } }
@@ -122,4 +122,99 @@ it('replays the submitted form as a disabled snapshot with persisted values', ()
   )
   expect(replay(events).surfaces.main.components.root.disabled).toBe(true)
   expect(replay(events, 2).surfaces.main.components.root.disabled).toBeUndefined()
+})
+
+const choice: Node = {
+  id: 'plan-decision',
+  component: 'LabChoice',
+  action: { event: { name: 'choose_plan', context: {} } },
+  value: {
+    title: 'Choose a plan',
+    description: 'Analysis complete',
+    allowCustom: true,
+    customMaxLength: 500,
+    options: [
+      {
+        id: 'incremental',
+        title: 'Plan 1',
+        description: 'Incremental migration',
+        recommended: true,
+      },
+      { id: 'rebuild', title: 'Plan 2', description: 'Full rebuild', recommended: false },
+    ],
+  },
+}
+it('confirms candidates directly, while custom choice requires a nonblank submission', () => {
+  const submit = vi.fn()
+  render(<ChoiceCard node={choice} disabled={false} action={submit} />)
+  expect(screen.getByText('Recommended')).toBeInTheDocument()
+  fireEvent.click(screen.getByRole('button', { name: /Plan 1/ }))
+  expect(submit).toHaveBeenLastCalledWith(choice, { choiceId: 'incremental' })
+  fireEvent.click(screen.getByRole('button', { name: /Plan 2/ }))
+  expect(submit).toHaveBeenLastCalledWith(choice, { choiceId: 'rebuild' })
+  submit.mockClear()
+  const input = screen.getByLabelText('Custom plan')
+  expect(input.closest('.choice-option')).toBeInTheDocument()
+  expect(submit).not.toHaveBeenCalled()
+  expect(screen.getByRole('button', { name: 'Confirm custom plan' })).toBeDisabled()
+  fireEvent.change(screen.getByLabelText('Custom plan'), {
+    target: { value: '  自定义迁移方案  ' },
+  })
+  fireEvent.submit(screen.getByRole('button', { name: 'Confirm custom plan' }).closest('form')!)
+  expect(submit).toHaveBeenCalledWith(choice, { choiceId: 'custom', text: '自定义迁移方案' })
+})
+it('restores a custom decision as read-only and blocks replay interactions', () => {
+  const submit = vi.fn()
+  const { rerender } = render(<ChoiceCard node={choice} disabled action={submit} />)
+  for (const button of screen.getAllByRole('button')) expect(button).toBeDisabled()
+  fireEvent.click(screen.getByRole('button', { name: /Plan 1/ }))
+  expect(submit).not.toHaveBeenCalled()
+  // A different saved turn mounts its own renderer and restores persisted text.
+  rerender(
+    <ChoiceCard
+      key="saved"
+      node={{
+        ...choice,
+        disabled: true,
+        value: {
+          ...(choice.value as object),
+          selectedChoiceId: 'custom',
+          customText: '先升级查询接口',
+        },
+      }}
+      disabled={false}
+      action={submit}
+    />,
+  )
+  expect(screen.getByLabelText('Custom plan')).toHaveValue('先升级查询接口')
+  expect(screen.getByLabelText('Custom plan')).toBeDisabled()
+  expect(screen.getByRole('status')).toHaveTextContent('Confirmed: Custom plan')
+  expect(screen.queryByRole('button', { name: 'Confirm custom plan' })).not.toBeInTheDocument()
+})
+it('rejects malformed decision definitions and invalid recorded selections', () => {
+  const v = choice.value as Record<string, unknown>
+  for (const value of [
+    { ...v, options: [] },
+    { ...v, options: [{ id: 'a' }, { id: 'b' }] },
+    { ...v, options: [(v.options as object[])[0], (v.options as object[])[0]] },
+    { ...v, customMaxLength: 0 },
+    { ...v, allowCustom: 'true' },
+    { ...v, selectedChoiceId: 'custom' },
+  ])
+    expect(interactiveError({ ...choice, value })).toBeDefined()
+  expect(
+    interactiveError({
+      ...choice,
+      disabled: true,
+      value: { ...v, selectedChoiceId: 'missing', customText: '' },
+    }),
+  ).toBeDefined()
+  expect(
+    interactiveError({
+      ...choice,
+      disabled: true,
+      value: { ...v, selectedChoiceId: 'custom', customText: '' },
+    }),
+  ).toBeDefined()
+  expect(interactiveError(choice)).toBeUndefined()
 })

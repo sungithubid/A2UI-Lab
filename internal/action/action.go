@@ -27,7 +27,7 @@ type Result struct {
 
 // Route validates a capability and domain input independently of HTTP or rendering.
 // Service checks the persisted lifecycle and makes the response/idempotency atomic.
-func Route(a Envelope, runID, scenario string) (Result, error) {
+func Route(a Envelope, runID, scenario string, question *event.ChoiceRequired) (Result, error) {
 	invalid := func(message string) (Result, error) { return Result{}, fmt.Errorf("%w: %s", fault.ErrInvalid, message) }
 	if a.Version != 1 || a.RunID != runID || a.SurfaceID != "main" || a.Category != "tool" {
 		return invalid("action is not available for this run")
@@ -64,6 +64,51 @@ func Route(a Envelope, runID, scenario string) (Result, error) {
 		return Result{Status: "completed", Events: []event.Message{
 			event.New("ticket.created", map[string]any{"ticketId": "ticket-" + runID, "values": values}),
 			completed("Support ticket saved locally. No email was sent.", values),
+			event.New("agent.completed", map[string]any{}),
+		}}, nil
+	case "plan-decision":
+		if a.ComponentID != "plan-decision" || a.Action != "choose_plan" || question == nil {
+			return invalid("plan decision is not available")
+		}
+		choiceID, ok := a.Data["choiceId"].(string)
+		if !ok {
+			return invalid("expected a choiceId")
+		}
+		title, text := "", ""
+		if choiceID == "custom" {
+			if !question.AllowCustom || len(a.Data) != 2 || question.CustomMaxLength < 1 || question.CustomMaxLength > 2000 {
+				return invalid("custom input is not available")
+			}
+			text, ok = a.Data["text"].(string)
+			text = strings.TrimSpace(text)
+			if !ok || text == "" || utf8.RuneCountInString(text) > question.CustomMaxLength {
+				return invalid("enter a custom plan within the character limit")
+			}
+			title = "Custom plan"
+		} else {
+			if len(a.Data) != 1 {
+				return invalid("expected only a choiceId")
+			}
+			for _, option := range question.Options {
+				if option.ID == choiceID {
+					title = option.Title
+					break
+				}
+			}
+			if title == "" {
+				return invalid("unknown plan choice")
+			}
+		}
+		selection := map[string]any{"choiceId": choiceID, "title": title, "text": text}
+		message := "Confirmed: " + title
+		if text != "" {
+			message += " — " + text
+		}
+		message += ". Mock recorded your choice. You can continue the conversation."
+		return Result{Status: "completed", Events: []event.Message{
+			event.New("decision.resolved", selection),
+			event.New("agent.resumed", map[string]any{"reason": "plan confirmed"}),
+			completed(message, map[string]any{"choiceId": choiceID, "title": title, "text": text, "question": question}),
 			event.New("agent.completed", map[string]any{}),
 		}}, nil
 	case "deployment-approval":
