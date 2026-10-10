@@ -42,6 +42,23 @@ try {
   const events = await (await request(base + '/events')).json()
   assert.ok(events.items.some((e) => e.kind === 'action.completed'))
   assert.ok(events.items.some((e) => e.kind === 'a2ui.message'))
+  const followup = await (
+    await request('/api/runs', 'POST', {
+      prompt: 'Summarize the previous result',
+      scenarioId: 'streaming-text',
+      conversationId: run.conversationId,
+      parentRunId: run.id,
+    })
+  ).json()
+  for (let i = 0; i < 200; i++) {
+    if ((await (await request(`/api/runs/${followup.id}`)).json()).status === 'completed') break
+    await new Promise((resolve) => setTimeout(resolve, 50))
+  }
+  assert.equal((await (await request(`/api/runs/${followup.id}`)).json()).status, 'completed')
+  const followupEvents = await (await request(`/api/runs/${followup.id}/events`)).json()
+  const followupRequest = followupEvents.items.find((e) => e.kind === 'model.request').payload
+  assert.equal(followupRequest.request.messages[1].content, 'Analyze server health')
+  assert.equal(followupRequest.externalCall, false)
   const index = await request('/')
   assert.match(await index.text(), /<div id="root">/)
   assert.equal(index.headers.get('cache-control'), 'no-cache')
@@ -61,6 +78,12 @@ try {
   await h.stop()
   await h.start()
   assert.deepEqual(await (await request(base + '/events')).json(), events)
+  assert.deepEqual(await (await request(`/api/runs/${followup.id}/events`)).json(), followupEvents)
+  const conversation = await (await request(`/api/runs/${followup.id}/conversation`)).json()
+  assert.deepEqual(
+    conversation.items.map((r) => r.id),
+    [run.id, followup.id],
+  )
   const restored = await (await request(`/api/runs/${pending.id}`)).json()
   assert.equal(restored.status, 'waiting_input')
   assert.equal(restored.finishedAt, '')
@@ -90,7 +113,7 @@ try {
   h.command(['doctor'])
   await h.stop()
   console.log(
-    'PASS binary smoke: fresh boot, Mock run, events, actions, SPA, backup, restart, deterministic persisted replay, pending form restored and submitted, delete, doctor',
+    'PASS binary smoke: fresh boot, Mock run, events, actions, SPA, backup, restart, deterministic persisted replay, pending form restored and submitted, multi-turn context and trace restored, delete, doctor',
   )
 } finally {
   await h.cleanup()

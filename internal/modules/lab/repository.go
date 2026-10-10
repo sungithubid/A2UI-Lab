@@ -25,6 +25,8 @@ type Run struct {
 	CreatedAt       string `json:"createdAt"`
 	FinishedAt      string `json:"finishedAt"`
 	LastSeq         int64  `json:"lastSeq"`
+	ConversationID  string `json:"conversationId"`
+	TurnIndex       int64  `json:"turnIndex"`
 }
 type Repository struct {
 	db *sql.DB
@@ -33,7 +35,7 @@ type Repository struct {
 
 func NewRepository(db *sql.DB) *Repository { return &Repository{db: db, q: dbgen.New(db)} }
 func model(r dbgen.Run) Run {
-	return Run{r.ID, r.Title, r.ScenarioID, r.Mode, r.Status, r.ProtocolVersion, r.AgentType, r.CreatedAt, r.FinishedAt, r.LastSeq}
+	return Run{r.ID, r.Title, r.ScenarioID, r.Mode, r.Status, r.ProtocolVersion, r.AgentType, r.CreatedAt, r.FinishedAt, r.LastSeq, r.ConversationID.String, r.TurnIndex}
 }
 func dbError(err error) error {
 	if errors.Is(err, sql.ErrNoRows) {
@@ -43,8 +45,57 @@ func dbError(err error) error {
 }
 func now() string { return time.Now().UTC().Format(time.RFC3339Nano) }
 func (r *Repository) Create(ctx context.Context, title, scenario, version string) (Run, error) {
-	v, err := r.q.CreateRun(ctx, dbgen.CreateRunParams{ID: security.Token(), Title: title, ScenarioID: scenario, ProtocolVersion: version, CreatedAt: now()})
-	return model(v), err
+	return r.CreateTurn(ctx, title, scenario, version, "", 1)
+}
+func (r *Repository) CreateTurn(ctx context.Context, title, scenario, version, conversationID string, turn int64) (Run, error) {
+	tx, err := r.db.BeginTx(ctx, nil)
+	if err != nil {
+		return Run{}, err
+	}
+	defer tx.Rollback()
+	q := r.q.WithTx(tx)
+	if conversationID == "" {
+		conversationID = security.Token()
+		if err = q.CreateConversation(ctx, dbgen.CreateConversationParams{ID: conversationID, Title: title, CreatedAt: now()}); err != nil {
+			return Run{}, err
+		}
+	}
+	v, err := q.CreateRun(ctx, dbgen.CreateRunParams{ID: security.Token(), Title: title, ScenarioID: scenario, ProtocolVersion: version, CreatedAt: now(), ConversationID: sql.NullString{String: conversationID, Valid: true}, TurnIndex: turn})
+	if err != nil {
+		return Run{}, err
+	}
+	return model(v), tx.Commit()
+}
+func (r *Repository) Conversation(ctx context.Context, id string) ([]Run, error) {
+	rows, err := r.q.ConversationRuns(ctx, sql.NullString{String: id, Valid: true})
+	if err != nil {
+		return nil, err
+	}
+	if len(rows) == 0 {
+		return nil, fault.ErrNotFound
+	}
+	out := make([]Run, 0, len(rows))
+	for _, v := range rows {
+		out = append(out, model(v))
+	}
+	return out, nil
+}
+
+// AllEvents walks persisted pages; context and replay must not silently stop at 1000.
+func (r *Repository) AllEvents(ctx context.Context, id string) ([]event.Event, error) {
+	out := []event.Event{}
+	var after int64
+	for {
+		page, err := r.Events(ctx, id, after)
+		if err != nil {
+			return nil, err
+		}
+		out = append(out, page...)
+		if len(page) < 1000 {
+			return out, nil
+		}
+		after = page[len(page)-1].Seq
+	}
 }
 func (r *Repository) Get(ctx context.Context, id string) (Run, error) {
 	v, err := r.q.GetRun(ctx, id)
@@ -133,8 +184,23 @@ func (r *Repository) Delete(ctx context.Context, id string) error {
 		}
 		return fmt.Errorf("%w: running runs cannot be deleted", fault.ErrConflict)
 	}
-	return nil
+	return r.q.DeleteEmptyConversations(ctx)
 }
 
-// DeleteAll atomically deletes every run; the existing foreign key cascades events.
-func (r *Repository) DeleteAll(ctx context.Context) (int64, error) { return r.q.DeleteAllRuns(ctx) }
+// DeleteAll atomically deletes runs, cascading events, and their empty conversations.
+func (r *Repository) DeleteAll(ctx context.Context) (int64, error) {
+	tx, err := r.db.BeginTx(ctx, nil)
+	if err != nil {
+		return 0, err
+	}
+	defer tx.Rollback()
+	q := r.q.WithTx(tx)
+	n, err := q.DeleteAllRuns(ctx)
+	if err != nil {
+		return 0, err
+	}
+	if err = q.DeleteEmptyConversations(ctx); err != nil {
+		return 0, err
+	}
+	return n, tx.Commit()
+}

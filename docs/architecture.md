@@ -7,11 +7,15 @@ control before remote deployment. Historical SaaS migrations remain immutable;
 existing tables and data are retained but no longer exposed by the application.
 
 ```text
-Mock Agent → semantic Event → Presentation Model → A2UI v0.9.1 adapter
-                                                       ↓
-SQLite append-only events → resumable SSE → protocol reducer → registry renderer
-              ↑                                      ↓
-              └──────── intent-based Action Router ───┘
+Persisted conversation → bounded semantic context → Mock Agent request
+                                                    ↓
+                                    semantic events → Presentation
+                                                    ↓
+                                  Markdown deltas / A2UI adapter
+                                                    ↓
+SQLite event log → resumable SSE → hybrid chat reducer → chat bubbles + surfaces
+         ↑                                                   ↓
+         └──────────── validated Action Router ──────────────┘
 ```
 
 `internal/agent` owns the runtime interface, with no protocol types. `presentation`
@@ -25,7 +29,7 @@ appends each batch and updates run status. Readers only observe committed batche
 A mock run is bounded and independent of SSE connections. Shutdown cancels workers;
 startup marks unfinished runs interrupted with an appended event. SSE uses sequence
 IDs, Last-Event-ID / after cursors and bounded connection windows for reconnects.
-Replay only reduces stored A2UI events; it never invokes an Agent or Presenter.
+Replay reduces stored text deltas and A2UI events from the same prefix; it never invokes an Agent or Presenter. Legacy runs without the hybrid marker render their stored A2UI text once.
 
 The current production specification is [A2UI v0.9.1](https://a2ui.org/specification/v0.9.1-a2ui/)
 (checked 2026-10-09). This implementation supports a documented subset, not the full
@@ -48,3 +52,31 @@ finish after publishing input.required or approval.required. An allowlisted acti
 validates input against the scenario and resolves it in one atomic event batch.
 Pending interactions survive restart; only running executions are recovered as
 interrupted. No new tables or long-lived Agent goroutines are needed. See ADR 0008.
+
+## Conversations and context
+
+Migration 00004 groups runs into conversations with ordered turn indexes; existing
+runs get independent conversations without rewriting their events. A new POST /runs
+without conversationId starts a conversation. Continuation requires conversationId
+and the current parentRunId. Service serialization rejects concurrent/stale parents,
+running or waiting_input predecessors and more than 100 turns. Earlier-turn actions
+are read-only. Each surface is scoped by run ID plus surface ID, avoiding collisions
+between multiple `main` surfaces across turns.
+
+Context is assembled on the server from persisted narrative and allowlisted semantic
+facts. At most eight recent whole turns fit a 32,000-byte serialized request budget;
+older turns are omitted, never silently summarized by another model. Request metadata
+records selected run IDs and omissions. UI trees, trace snapshots and contact form
+values are excluded. Ordinary prompts remain verbatim. Raw local history can contain
+form input; this is not a general PII-redaction or secret-detection system.
+
+Text is coalesced before persistence: first chunk immediately, then up to 50 ms or
+128 characters, with flushes before non-text events, message-ID changes and terminal
+states. Buffers are run-local. The single event log supplies both render paths and
+records the observed chunks, so replay never reruns the timing policy. Narrative is
+never duplicated into A2UI Text components. Card-local text still uses A2UI.
+
+Trace is a projection of persisted context/request/response, tool, action and protocol
+events. The exact application Request passed to Mock is persisted before invocation;
+output metadata measures elapsed time and output characters, not tokens or cost.
+No external LLM HTTP request exists in this slice. See ADR 0009.

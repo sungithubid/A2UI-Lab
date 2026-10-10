@@ -33,3 +33,13 @@ than one history page and cascade events, then verify that new runs still work.
 Browser tests cover toolbar alignment, modal cancellation and recoverable errors,
 cleared history after reload, and Inspector resizing by pointer/keyboard with saved
 proportions, reset and mobile layout.
+
+Hybrid conversation coverage includes exact persisted request/adapter equality,
+conversation isolation, stale-parent/concurrent submission rejection, pending-input
+serialization, contact-field exclusion, explicit context budgets, complete event
+pagination, and legacy migration Up/Down preserving events. Reducer tests verify
+interleaved text/surfaces, missing-prefix handling, deduplication and legacy rendering.
+Markdown tests cover GFM, incomplete streaming syntax, blocked HTML/unsafe URLs and
+remote images. Browser flows verify bubble alignment, request/tool inspection,
+context-aware Mock follow-ups, reload, prior-turn read-only actions, replay and mobile
+layout. Binary smoke restarts and compares saved multi-turn context and trace events.

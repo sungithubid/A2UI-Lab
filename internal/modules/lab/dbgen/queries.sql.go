@@ -7,6 +7,7 @@ package dbgen
 
 import (
 	"context"
+	"database/sql"
 )
 
 const appendEvent = `-- name: AppendEvent :exec
@@ -35,9 +36,64 @@ func (q *Queries) AppendEvent(ctx context.Context, arg AppendEventParams) error 
 	return err
 }
 
+const conversationRuns = `-- name: ConversationRuns :many
+SELECT id, title, scenario_id, mode, status, protocol_version, agent_type, created_at, finished_at, last_seq, conversation_id, turn_index FROM runs WHERE conversation_id=?1 ORDER BY turn_index
+`
+
+func (q *Queries) ConversationRuns(ctx context.Context, conversationID sql.NullString) ([]Run, error) {
+	rows, err := q.db.QueryContext(ctx, conversationRuns, conversationID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []Run{}
+	for rows.Next() {
+		var i Run
+		if err := rows.Scan(
+			&i.ID,
+			&i.Title,
+			&i.ScenarioID,
+			&i.Mode,
+			&i.Status,
+			&i.ProtocolVersion,
+			&i.AgentType,
+			&i.CreatedAt,
+			&i.FinishedAt,
+			&i.LastSeq,
+			&i.ConversationID,
+			&i.TurnIndex,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const createConversation = `-- name: CreateConversation :exec
+INSERT INTO conversations(id,title,created_at) VALUES(?1,?2,?3)
+`
+
+type CreateConversationParams struct {
+	ID        string
+	Title     string
+	CreatedAt string
+}
+
+func (q *Queries) CreateConversation(ctx context.Context, arg CreateConversationParams) error {
+	_, err := q.db.ExecContext(ctx, createConversation, arg.ID, arg.Title, arg.CreatedAt)
+	return err
+}
+
 const createRun = `-- name: CreateRun :one
-INSERT INTO runs(id,title,scenario_id,mode,status,protocol_version,agent_type,created_at)
-VALUES(?1,?2,?3,'deterministic','running',?4,'mock',?5) RETURNING id, title, scenario_id, mode, status, protocol_version, agent_type, created_at, finished_at, last_seq
+INSERT INTO runs(id,title,scenario_id,mode,status,protocol_version,agent_type,created_at,conversation_id,turn_index)
+VALUES(?1,?2,?3,'deterministic','running',?4,'mock',?5,?6,?7) RETURNING id, title, scenario_id, mode, status, protocol_version, agent_type, created_at, finished_at, last_seq, conversation_id, turn_index
 `
 
 type CreateRunParams struct {
@@ -46,6 +102,8 @@ type CreateRunParams struct {
 	ScenarioID      string
 	ProtocolVersion string
 	CreatedAt       string
+	ConversationID  sql.NullString
+	TurnIndex       int64
 }
 
 func (q *Queries) CreateRun(ctx context.Context, arg CreateRunParams) (Run, error) {
@@ -55,6 +113,8 @@ func (q *Queries) CreateRun(ctx context.Context, arg CreateRunParams) (Run, erro
 		arg.ScenarioID,
 		arg.ProtocolVersion,
 		arg.CreatedAt,
+		arg.ConversationID,
+		arg.TurnIndex,
 	)
 	var i Run
 	err := row.Scan(
@@ -68,6 +128,8 @@ func (q *Queries) CreateRun(ctx context.Context, arg CreateRunParams) (Run, erro
 		&i.CreatedAt,
 		&i.FinishedAt,
 		&i.LastSeq,
+		&i.ConversationID,
+		&i.TurnIndex,
 	)
 	return i, err
 }
@@ -84,6 +146,15 @@ func (q *Queries) DeleteAllRuns(ctx context.Context) (int64, error) {
 	return result.RowsAffected()
 }
 
+const deleteEmptyConversations = `-- name: DeleteEmptyConversations :exec
+DELETE FROM conversations WHERE NOT EXISTS (SELECT 1 FROM runs WHERE runs.conversation_id=conversations.id)
+`
+
+func (q *Queries) DeleteEmptyConversations(ctx context.Context) error {
+	_, err := q.db.ExecContext(ctx, deleteEmptyConversations)
+	return err
+}
+
 const deleteRun = `-- name: DeleteRun :execrows
 DELETE FROM runs WHERE id=?1 AND status!='running'
 `
@@ -97,7 +168,7 @@ func (q *Queries) DeleteRun(ctx context.Context, id string) (int64, error) {
 }
 
 const getRun = `-- name: GetRun :one
-SELECT id, title, scenario_id, mode, status, protocol_version, agent_type, created_at, finished_at, last_seq FROM runs WHERE id=?1
+SELECT id, title, scenario_id, mode, status, protocol_version, agent_type, created_at, finished_at, last_seq, conversation_id, turn_index FROM runs WHERE id=?1
 `
 
 func (q *Queries) GetRun(ctx context.Context, id string) (Run, error) {
@@ -114,6 +185,8 @@ func (q *Queries) GetRun(ctx context.Context, id string) (Run, error) {
 		&i.CreatedAt,
 		&i.FinishedAt,
 		&i.LastSeq,
+		&i.ConversationID,
+		&i.TurnIndex,
 	)
 	return i, err
 }
@@ -159,7 +232,7 @@ func (q *Queries) ListEvents(ctx context.Context, arg ListEventsParams) ([]Event
 }
 
 const listRuns = `-- name: ListRuns :many
-SELECT id, title, scenario_id, mode, status, protocol_version, agent_type, created_at, finished_at, last_seq FROM runs ORDER BY created_at DESC,id LIMIT ?2 OFFSET ?1
+SELECT id, title, scenario_id, mode, status, protocol_version, agent_type, created_at, finished_at, last_seq, conversation_id, turn_index FROM runs ORDER BY created_at DESC,id LIMIT ?2 OFFSET ?1
 `
 
 type ListRunsParams struct {
@@ -187,6 +260,8 @@ func (q *Queries) ListRuns(ctx context.Context, arg ListRunsParams) ([]Run, erro
 			&i.CreatedAt,
 			&i.FinishedAt,
 			&i.LastSeq,
+			&i.ConversationID,
+			&i.TurnIndex,
 		); err != nil {
 			return nil, err
 		}
@@ -202,7 +277,7 @@ func (q *Queries) ListRuns(ctx context.Context, arg ListRunsParams) ([]Run, erro
 }
 
 const runningRuns = `-- name: RunningRuns :many
-SELECT id, title, scenario_id, mode, status, protocol_version, agent_type, created_at, finished_at, last_seq FROM runs WHERE status='running'
+SELECT id, title, scenario_id, mode, status, protocol_version, agent_type, created_at, finished_at, last_seq, conversation_id, turn_index FROM runs WHERE status='running'
 `
 
 func (q *Queries) RunningRuns(ctx context.Context) ([]Run, error) {
@@ -225,6 +300,8 @@ func (q *Queries) RunningRuns(ctx context.Context) ([]Run, error) {
 			&i.CreatedAt,
 			&i.FinishedAt,
 			&i.LastSeq,
+			&i.ConversationID,
+			&i.TurnIndex,
 		); err != nil {
 			return nil, err
 		}

@@ -9,23 +9,21 @@
 A2UI Lab 的核心定位是探索面向生成式 AI 交互界面的 **标准化声明式协议工程实践**。全链路遵循严格的分层管道：
 
 ```text
-Agent (智能体/大模型)
-   ↓ 原始语义事件 (event.Message)
-Presentation (应用展示语义层: internal/presentation)
-   ↓ 自包含展示模型 (presentation.Model)
-A2UI Protocol (协议映射层: internal/a2ui, 生产版 v0.9.1 子集)
-   ↓ 声明式组件树 (a2ui.Message: updateComponents / updateDataModel)
-SQLite (事务持久化: runs & events 表，分配全局单调递增 Seq)
-   ↓ SSE (事件流实时广播与断点续传)
-Renderer (前端受控渲染器: web/src/features/renderer)
-   ↓ 标准化意图信封 (action.Envelope)
-Action Router (服务端受控路由与白名单校验: internal/action)
+后端会话历史 → 有界 messages / uiContext → Mock Agent
+   ↓ 语义事件与请求 Trace
+Presentation
+   ├─ text-delta → Markdown 对话块
+   └─ 结构化内容 → A2UI 协议 → 受控 Surface 组件
+   ↓ SQLite 持久化 conversations / runs / events（run 内单调 Seq）
+SSE → 聊天 / Trace / Protocol Inspector → 事件前缀重放
+   ↓ 意图 Action
+服务端白名单校验 → 持久化交互结果
 ```
 
 ### 系统的三大设计基石：
 1. **事件溯源与前缀自解释（Event Prefix Replayability）**：
    - 界面上**任何一帧 UI 状态，都能完全由已持久化的历史事件前缀解释**。
-   - 无论前端执行 Play、Step（单步）还是 Reset（重置），重放逻辑纯粹基于已记录的 `a2ui.message` 计算，**绝不重新调用大模型、Agent 或外部 API**。
+   - 无论前端执行 Play、Step（单步）还是 Reset（重置），重放逻辑基于已记录的文本增量、`a2ui.message` 和 Trace 事件计算，**绝不重新调用大模型、Agent 或外部 API**。
 2. **绝对安全沙箱与零动态执行（Never Execute Incoming Code）**：
    - Agent 输出的永远是纯结构化数据（Data），前端渲染引擎（Renderer）绝不执行任何传入的 HTML 字符串、动态 JS 脚本或未受控组件。
    - 所有链接、图片地址均经受控的安全前置校验（如 `safeLink`、`safeImage`），组件完全由前端受控注册表映射渲染。
@@ -59,7 +57,7 @@ flowchart TD
     end
 
     subgraph L1 ["Level 1: 文本流式与展示解耦 (Streaming Text)"]
-        S1["streaming-text (Token 增量聚合与声明式文本组件)"]
+        S1["streaming-text (Markdown 增量缓冲与混合展示)"]
     end
 
     L1 --> L2 --> L3 --> L4
@@ -69,18 +67,16 @@ flowchart TD
 
 ### Level 1：文本流式与展示解耦 (Streaming Text)
 
-#### 1. `streaming-text`（流式文本）
+#### 1. `streaming-text`（流式 Markdown 文本）
 - **Prompt 示例**：`Show a streaming answer`
-- **演示的核心能力**：
-  - 大模型原始增量分片（`model.text_delta`）向声明式 UI 树协议的转换。
-  - 纯文本流在 A2UI 体系下的聚合机制。
+- **演示的核心能力**：Markdown 标题、列表、表格、代码块增量显示，与 A2UI 组件共用同一事件序列。
 - **架构机制**：
-  - Agent 原生以 Token 切片发出增量文本。
-  - `presentation.Presenter` 在内存中维护缓冲区执行 `p.text += delta`，输出自包含的全量展示模型（`presentation.event`）。
-  - A2UI 适配器下发 `updateComponents`，更新 `id: "answer"` 节点的文本内容。
-  - 单一 SQLite 事务原子打包入库：`[model.text_delta, presentation.event, a2ui.message]`。
-- **设计哲学**：
-  - 阐明了“大模型的高频增量流”与“A2UI 协议的声明式状态”之间的桥梁设计，为后续解决高频 Token 性能问题奠定基础。
+  - Mock 以约 12 个字符分片模拟流式输出，不等同于真实模型 token 边界。
+  - 服务层首片立即发送，后续以 50ms / 128 字符阈值合并；非文本事件和结束时先刷新缓冲，保留输出顺序。
+  - `presentation.event` 记录 `text-delta`，前端按消息顺序累加 Markdown；不重复持久化整段累计文本。
+  - 纯文本不产生 A2UI 消息。只有工具、指标、卡片、表单等结构化输出才创建 Surface。
+  - Markdown 禁用原始 HTML 与远程图片，链接经过协议校验；旧版已保存的 A2UI 文本仍可重放。
+- **多轮验证**：完成任意场景后发送追问，Mock 会以固定模板引用实际收到的历史 prompt 和 UI 语义事实；Trace 可检查完整请求参数。它不执行自然语言推理，也不调用外部模型。
 
 ---
 
@@ -119,13 +115,13 @@ flowchart TD
 - **Prompt 示例**：`Recommend an Agent UI resource`
 - **演示的核心能力**：
   - 从纯对话文本平滑过渡到富媒体卡片生成（Generative Rich UI）。
-  - **组件树动态生长**：根容器的子节点列表从 `["answer"]` 动态扩容为 `["answer", "recommendation"]`。
+  - **组件树动态生长**：叙述文本留在 Markdown 对话块，首个结构化结果创建 Surface 并挂载 `recommendation`。
 - **架构机制**：
   - Agent 吐出领域语义事件 `resource.recommended`（包含图片路径、标题、外链）。
   - A2UI 采用扁平**邻接表（Adjacency List）**更新树拓扑，动态挂载 `LabImageCard` 组件。
   - 前端执行图片懒加载、安全协议校验（`safeLink`、`safeImage`）与加载失败兜底（`onError`）。
 - **设计哲学**：
-  - 杜绝传统 LLM 输出不可控 Markdown/HTML 的脆弱性，通过结构化协议保障跨端统一渲染与绝对安全。
+  - 叙述内容使用受控 Markdown 渲染，交互卡片使用经过验证的结构化协议，分别承担文本与交互职责。
 
 #### 5. `image-list`（渐进式左图右文资源列表）
 - **Prompt 示例**：`Find resources for building a local Agent UI lab`
@@ -134,8 +130,7 @@ flowchart TD
   - **组件复用与布局变体**：同一组件通过属性差异（`layout: "row"`）实现形态切换。
 - **架构机制**：
   - Agent 依次发送 `index: 0`、`index: 1`、`index: 2` 的资源。
-  - 根容器 `Column` 的 children 在 754ms、1005ms、1256ms 经历了三次扩容：
-    `["answer"]` $\to$ `[..., "resource-0"]` $\to$ `[..., "resource-1"]` $\to$ `[..., "resource-2"]`。
+  - 根容器 `Column` 随资源到达依次追加 `resource-0`、`resource-1`、`resource-2`；具体耗时可在当前轮 Trace 中查看。
   - 复用 `LabImageCard` 组件，但在 value 中注入 `"layout": "row"`，前端自动以“左图右文”横向排版展现。
 - **设计哲学**：
   - 契合人类认知直觉：用户可以在后续条目还在搜索时，立即阅读和点击第一条结果。同时组件库保持小而美，通过属性驱动形态。
@@ -148,12 +143,12 @@ flowchart TD
 - **Prompt 示例**：`Prepare a staging deployment for my review`
 - **演示的核心能力**：
   - **人机协同（HITL）暂停与唤醒**：Agent 遇到高危发布动作时主动挂起，进入低功耗 `waiting_input` 状态。
-  - **双向意图闭环**：用户在 UI 点击 `Approve` / `Reject` $\to$ 触发标准 Action $\to$ 唤醒 Agent 恢复执行真实工具调用。
+  - **双向意图闭环**：用户在 UI 点击 `Approve` / `Reject` $\to$ 触发标准 Action $\to$ 由服务端执行确定性的 Mock 后续动作。
   - **多画布（Multi-Surface）协同**：创建新的 `action-result` 画布展示部署回执，同时将原审批卡片置灰锁定（`disabled: true`）。
 - **架构机制**：
   - Agent 触发 `approval.required`，Run 切换为 `waiting_input`，工作协程退出，等待外部驱动。
   - 用户操作提交标准信封 `POST /api/runs/{id}/actions`；
-  - 服务端 Action Router 校验合法性后广播 `approval.resolved` 并唤醒 Agent 继续运行 `deploy_staging_mock` 工具。
+  - 服务端 Action Router 校验合法性后广播 `approval.resolved` 并由动作处理器执行 `deploy_staging_mock` 模拟工具。
   - A2UI 下发两条消息：一条创建 `surfaceId: "action-result"` 呈现凭据，另一条修改主画布组件为 `disabled: true`，彻底消除二次点击冲突。
 - **设计哲学**：
   - 核心业务不能盲目让 Agent 自动全权操作。将人类决策作为可审计、可中断、可重放的明确环节纳入协议循环。
@@ -177,11 +172,11 @@ flowchart TD
 
 | 场景 ID | 演示名称 | 核心能力层级 | 主要 UI 组件 | Surface 数量 | 交互类型 | 关键架构特征 |
 | :--- | :--- | :---: | :--- | :---: | :---: | :--- |
-| **`streaming-text`** | 流式文本 | **L1** | `Text` | 1 | 单向流式 | Token 增量缓冲聚合，单节点原地累加 |
+| **`streaming-text`** | 流式文本 | **L1** | Markdown | 0 | 单向流式 | 文本增量缓冲，与 A2UI 共用事件序列 |
 | **`server-health`** | 服务器健康 | **L2** | `LabToolCall`, `LabProgress`, `Card` | 1 $\to$ 2 | 事后动作 | 工具可观测性、数据模型单向绑定（`/summary`） |
 | **`tool-error`** | 工具失败 | **L2** | `LabAlert` | 1 | 异常处理 | 显式失败事件映射，系统不崩溃、可审计重放 |
-| **`image-card`** | 图文卡片 | **L3** | `Text`, `LabImageCard` | 1 | 静态富媒体 | 结构化领域事件、邻接表组件树动态扩展 |
-| **`image-list`** | 资源列表 | **L3** | `Text`, `LabImageCard` (多实例) | 1 | 渐进式流式 | 搜索结果逐一到达渲染，`layout: "row"` 组件复用 |
+| **`image-card`** | 图文卡片 | **L3** | Markdown, `LabImageCard` | 1 | 静态富媒体 | 结构化领域事件、邻接表组件树动态扩展 |
+| **`image-list`** | 资源列表 | **L3** | Markdown, `LabImageCard` (多实例) | 1 | 渐进式流式 | 搜索结果逐一到达渲染，`layout: "row"` 组件复用 |
 | **`deployment-approval`**| 部署审批 | **L4** | `LabApproval`, `Text` | **2** | **双向中断/恢复** | HITL 挂起唤醒、意图路由白名单、卡片只读锁定 |
 | **`support-form`** | 工单表单 | **L4** | `LabForm`, `Text` | **2** | **双向数据收集** | Schema 驱动表单、服务端深度校验、表单内容持久化反填 |
 
@@ -210,3 +205,12 @@ flowchart TD
 ```
 
 这一整套机制确保了：**无论在实时交互阶段，还是在离线重放（Replay）阶段，系统都处于完全确定性、安全受控的状态。**
+
+
+## 五、多轮会话与 Trace
+
+每个 run 是会话的一轮；**New run** 创建新会话，聊天底部 **Send message** 继续当前会话。后端保存历史并构建 `agent.Request`，前端不提交完整聊天 JSON。请求包含近期文本及经过筛选的 UI 语义事实，不包含完整组件树和联系表单字段。最近历史最多 8 轮，完整请求最多 32,000 个序列化 UTF-8 字节，省略信息记录在 Trace；单会话最多 100 轮。
+
+**Trace turn** 可切换轮次，查看上下文构建、实际 Mock 请求、响应、工具、Action 与 A2UI 消息。历史轮组件只读；等待输入的表单和审批完成前不可创建下一轮。重放仅还原已保存事件，不发起模型请求。本版本明确显示 Mock 和未发生外部调用。
+
+详见 [混合会话与 Trace 决策](decisions/0009-hybrid-conversations-and-traces.md)。

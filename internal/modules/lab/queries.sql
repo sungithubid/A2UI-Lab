@@ -1,6 +1,6 @@
 -- name: CreateRun :one
-INSERT INTO runs(id,title,scenario_id,mode,status,protocol_version,agent_type,created_at)
-VALUES(sqlc.arg(id),sqlc.arg(title),sqlc.arg(scenario_id),'deterministic','running',sqlc.arg(protocol_version),'mock',sqlc.arg(created_at)) RETURNING *;
+INSERT INTO runs(id,title,scenario_id,mode,status,protocol_version,agent_type,created_at,conversation_id,turn_index)
+VALUES(sqlc.arg(id),sqlc.arg(title),sqlc.arg(scenario_id),'deterministic','running',sqlc.arg(protocol_version),'mock',sqlc.arg(created_at),sqlc.arg(conversation_id),sqlc.arg(turn_index)) RETURNING *;
 -- name: GetRun :one
 SELECT * FROM runs WHERE id=sqlc.arg(id);
 -- name: ListRuns :many
@@ -19,3 +19,10 @@ DELETE FROM runs WHERE id=sqlc.arg(id) AND status!='running';
 
 -- name: DeleteAllRuns :execrows
 DELETE FROM runs;
+
+-- name: CreateConversation :exec
+INSERT INTO conversations(id,title,created_at) VALUES(sqlc.arg(id),sqlc.arg(title),sqlc.arg(created_at));
+-- name: ConversationRuns :many
+SELECT * FROM runs WHERE conversation_id=sqlc.arg(conversation_id) ORDER BY turn_index;
+-- name: DeleteEmptyConversations :exec
+DELETE FROM conversations WHERE NOT EXISTS (SELECT 1 FROM runs WHERE runs.conversation_id=conversations.id);

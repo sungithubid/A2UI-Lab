@@ -48,6 +48,7 @@ export function LabPage() {
       setConfirmAll(false)
       client.setQueryData(['runs'], [])
       client.removeQueries({ queryKey: ['events'] })
+      client.removeQueries({ queryKey: ['conversation'] })
       void client.invalidateQueries({ queryKey: ['runs'] })
     },
   })
@@ -128,7 +129,7 @@ export function LabPage() {
             <option value="">Choose a persisted run</option>
             {runs.data?.map((r) => (
               <option key={r.id} value={r.id}>
-                {r.title} · {r.status} · {r.id.slice(0, 6)}
+                {r.title} · turn {r.turnIndex} · {r.status} · {r.id.slice(0, 6)}
               </option>
             ))}
           </select>
@@ -166,6 +167,7 @@ export function LabPage() {
       </section>
       <p className="scenario-description">
         {scenarios.data?.find((s) => s.id === scenario)?.description}
+        <span> New run starts a conversation; use the chat composer to continue.</span>
       </p>
       {(create.error || runs.error || scenarios.error || remove.error) && (
         <p role="alert" className="issue">
@@ -173,14 +175,14 @@ export function LabPage() {
         </p>
       )}
       {id ? (
-        <Experiment key={id} id={id} />
+        <Experiment key={id} id={id} onRun={setID} />
       ) : (
         <section className="welcome">
           <FlaskConical size={44} />
           <h2>Every UI has a story. Inspect every event.</h2>
           <p>
-            Start a deterministic experiment, watch its UI form, inspect the protocol, then replay
-            it from SQLite.
+            Start a conversation, stream Markdown and interactive cards, then continue with saved
+            context. Inspect every request and replay it from SQLite.
           </p>
           <div className="welcome-steps">
             <span>01 / Agent events</span>
@@ -190,9 +192,7 @@ export function LabPage() {
           </div>
         </section>
       )}
-      <footer>
-        LOCAL LAB · SQLite event history · Lab catalog v1 · Intent and Generative modes are planned
-      </footer>
+      <footer>LOCAL LAB · Hybrid chat · Persisted multi-turn context · Mock request traces</footer>
     </main>
   )
 }

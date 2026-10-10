@@ -53,6 +53,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/runs/{id}/conversation": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["get-run-conversation"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/runs/{id}/events": {
         parameters: {
             query?: never;
@@ -96,6 +112,8 @@ export interface components {
              * @example https://example.com/api/schemas/Create.json
              */
             readonly $schema?: string;
+            conversationId?: string;
+            parentRunId?: string;
             prompt: string;
             /** @enum {string} */
             scenarioId: "server-health" | "streaming-text" | "tool-error" | "image-card" | "image-list" | "support-form" | "deployment-approval";
@@ -213,6 +231,7 @@ export interface components {
              */
             readonly $schema?: string;
             agentType: string;
+            conversationId: string;
             createdAt: string;
             finishedAt: string;
             id: string;
@@ -223,6 +242,8 @@ export interface components {
             scenarioId: string;
             status: string;
             title: string;
+            /** Format: int64 */
+            turnIndex: number;
         };
         RunsOutputBody: {
             /**
@@ -435,6 +456,37 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["Run"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ErrorModel"];
+                };
+            };
+        };
+    };
+    "get-run-conversation": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RunsOutputBody"];
                 };
             };
             /** @description Error */

@@ -23,7 +23,12 @@ same stored prefix and displayed with the incoming event. No HTML/code is execut
 
 ## REST
 
-- POST `/api/runs`: `{prompt, scenarioId}` → Run (201), starts bounded mock execution.
+- POST `/api/runs`: `{prompt, scenarioId, conversationId?, parentRunId?}` → Run (201).
+  Omit both IDs for a new conversation; continuation requires the latest finished
+  parent in the named conversation (409 for stale/running/waiting input or 100 turns).
+  The server builds history; clients cannot supply authoritative messages/UI history.
+- GET `/api/runs/{id}/conversation`: all surviving runs in this conversation, ordered
+  by turnIndex. Run includes conversationId and turnIndex.
 - GET `/api/runs?offset=0`: up to 100 runs, newest first.
 - GET `/api/runs/{id}`: run metadata/status and lastSeq.
 - DELETE `/api/runs/{id}`: delete a non-running run and cascade its events (204).
@@ -37,8 +42,7 @@ same stored prefix and displayed with the incoming event. No HTML/code is execut
 - POST `/api/runs/{id}/actions`: normalized envelope → updated Run.
 
 OpenAPI is generated at `docs/openapi.json`, served at `/api/openapi.json`.
-Input is part of run creation in this slice; multi-turn `/input`, scenario editing
-and scenario-specific endpoints are deferred until real Agent conversations exist.
+Each user message starts a run; a separate `/input` endpoint is unnecessary for this slice. Scenario editing and real Agent adapters remain deferred.
 No workspace IDs or user-supplied roles are involved in this local-only model.
 
 ## Stream
@@ -91,3 +95,26 @@ External URL schemes/credentials, malformed form definitions and unsafe field na
 are rejected by the renderer validator. Local illustrations require no external image
 service or CSP relaxation. Replay never submits a form or decision; it restores the
 saved values and disabled state from the event prefix.
+
+## Hybrid rendering and trace events
+
+New `run.started` events carry `rendering: "hybrid"`, conversationId and turnIndex.
+`model.text_delta` contains messageId/text and renders through safe Markdown. A2UI
+messages describe only cards, progress, forms, decisions and other structured UI.
+Both channels share the run sequence and cursor. The first component update anchors
+a Surface inside the Agent bubble; later updates preserve that position. IDs are
+scoped by run. A new text block begins after an intervening Surface. Old runs without
+the marker render their original A2UI snapshot path without duplicate narrative.
+
+`trace.context` records source run IDs, omitted turns, byte/turn budgets and measured
+construction time. `model.request` stores `{adapter:"mock", externalCall:false,
+request:{prompt,scenarioId,messages,uiContext},textBuffer}` exactly before invocation.
+Messages contain role/content and optional sourceRunId; uiContext contains semantic
+facts and run/scenario/status references, never the component tree. These are Lab
+adapter parameters, not a vendor's LLM API schema. `model.response` records status,
+outputCharacters and durationMs. Tools/actions retain their existing event payloads.
+The trace viewer derives spans from these ordered events, including interruption.
+
+Continuation makes previous-turn actions read-only (409). Resolve pending inputs
+first. Deleting a run removes its events and, if empty, its conversation; request
+snapshots already stored in later runs are historical records and remain intact.

@@ -15,14 +15,13 @@ type Model struct {
 	Data    map[string]any `json:"data,omitempty"`
 	Percent float64        `json:"percent,omitempty"`
 }
-type Presenter struct{ text string }
+type Presenter struct{}
 
 func (p *Presenter) Present(e event.Message) []Model {
 	str := func(k string) string { v, _ := e.Payload[k].(string); return v }
 	switch e.Kind {
 	case "model.text_delta":
-		p.text += str("text")
-		return []Model{{Kind: "text", ID: "answer", Text: p.text}}
+		return []Model{{Kind: "text-delta", ID: str("messageId"), Text: str("text")}}
 	case "tool.started":
 		return []Model{{Kind: "tool-call", ID: "tool", Text: str("name"), Data: e.Payload}}
 	case "resource.recommended":

@@ -4,6 +4,10 @@
 
 package dbgen
 
+import (
+	"database/sql"
+)
+
 type Event struct {
 	ID          string
 	RunID       string
@@ -24,4 +28,6 @@ type Run struct {
 	CreatedAt       string
 	FinishedAt      string
 	LastSeq         int64
+	ConversationID  sql.NullString
+	TurnIndex       int64
 }

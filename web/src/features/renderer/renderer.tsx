@@ -137,7 +137,7 @@ export function Renderer({
         return (
           <section className="surface" key={surfaceId}>
             <p className="eyebrow">SURFACE / {surfaceId}</p>
-            <Boundary key={JSON.stringify(surface)}>{render('root')}</Boundary>
+            <Boundary>{render('root')}</Boundary>
           </section>
         )
       })}

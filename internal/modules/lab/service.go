@@ -9,6 +9,7 @@ import (
 	"strings"
 	"sync"
 	"time"
+	"unicode/utf8"
 
 	"github.com/sungithubid/A2UI-Lab/internal/a2ui"
 	"github.com/sungithubid/A2UI-Lab/internal/action"
@@ -37,8 +38,10 @@ func Scenarios() []Scenario {
 }
 
 type Create struct {
-	Prompt     string `json:"prompt" minLength:"1" maxLength:"2000"`
-	ScenarioID string `json:"scenarioId" enum:"server-health,streaming-text,tool-error,image-card,image-list,support-form,deployment-approval"`
+	ConversationID string `json:"conversationId,omitempty" maxLength:"100"`
+	ParentRunID    string `json:"parentRunId,omitempty" maxLength:"100"`
+	Prompt         string `json:"prompt" minLength:"1" maxLength:"2000"`
+	ScenarioID     string `json:"scenarioId" enum:"server-health,streaming-text,tool-error,image-card,image-list,support-form,deployment-approval"`
 }
 type worker struct {
 	cancel context.CancelFunc
@@ -71,7 +74,7 @@ func (s *Service) Create(ctx context.Context, in Create) (Run, error) {
 			valid = true
 		}
 	}
-	if !valid || in.Prompt == "" || len(in.Prompt) > 2000 {
+	if !valid || in.Prompt == "" || len(in.Prompt) > 2000 || len(in.ConversationID) > 100 || len(in.ParentRunID) > 100 {
 		return Run{}, fmt.Errorf("%w: prompt and known scenario required", fault.ErrInvalid)
 	}
 	s.mu.Lock()
@@ -79,11 +82,36 @@ func (s *Service) Create(ctx context.Context, in Create) (Run, error) {
 	if s.closed || s.active >= 8 {
 		return Run{}, fmt.Errorf("%w: runtime unavailable or busy", fault.ErrConflict)
 	}
-	r, err := s.repo.Create(ctx, in.Prompt, in.ScenarioID, string(a2ui.Version))
+	contextStart := time.Now()
+	history := []Run{}
+	turn := int64(1)
+	if in.ConversationID != "" {
+		var err error
+		history, err = s.repo.Conversation(ctx, in.ConversationID)
+		if err != nil {
+			return Run{}, err
+		}
+		latest := history[len(history)-1]
+		if latest.ID != in.ParentRunID || latest.Status == "running" || latest.Status == "waiting_input" {
+			return Run{}, fmt.Errorf("%w: continue from the latest finished turn; resolve pending input first", fault.ErrConflict)
+		}
+		if latest.TurnIndex >= 100 {
+			return Run{}, fmt.Errorf("%w: conversation limit is 100 turns; start a new conversation", fault.ErrConflict)
+		}
+		turn = latest.TurnIndex + 1
+	} else if in.ParentRunID != "" {
+		return Run{}, fmt.Errorf("%w: conversationId required with parentRunId", fault.ErrInvalid)
+	}
+	req, contextInfo, err := s.buildRequest(ctx, in, history)
+	if err != nil {
+		return Run{}, err
+	}
+	contextDuration := time.Since(contextStart).Milliseconds()
+	r, err := s.repo.CreateTurn(ctx, in.Prompt, in.ScenarioID, string(a2ui.Version), in.ConversationID, turn)
 	if err != nil {
 		return r, err
 	}
-	err = s.repo.Append(ctx, r.ID, []event.Message{event.New("run.started", map[string]any{"scenarioId": in.ScenarioID}), event.New("user.message", map[string]any{"text": in.Prompt})}, "")
+	err = s.repo.Append(ctx, r.ID, []event.Message{event.New("run.started", map[string]any{"scenarioId": in.ScenarioID, "rendering": "hybrid", "conversationId": r.ConversationID, "turnIndex": r.TurnIndex}), event.New("user.message", map[string]any{"text": in.Prompt}), event.New("trace.context", map[string]any{"context": contextInfo, "durationMs": contextDuration})}, "")
 	if err != nil {
 		return r, err
 	}
@@ -104,7 +132,7 @@ func (s *Service) Create(ctx context.Context, in Create) (Run, error) {
 			s.active--
 			s.mu.Unlock()
 		}()
-		s.execute(workerCtx, r, in)
+		s.execute(workerCtx, r, req)
 	}()
 	return s.repo.Get(ctx, r.ID)
 }
@@ -114,40 +142,107 @@ func protocolMessage(m a2ui.Message) event.Message {
 	}
 	return event.New("a2ui.message", m)
 }
-func (s *Service) execute(parent context.Context, r Run, in Create) {
+func (s *Service) execute(parent context.Context, r Run, req agent.Request) {
 	ctx, cancel := context.WithTimeout(parent, 20*time.Second)
 	defer cancel()
 	status := "completed"
+	startedAt := time.Now()
+	var semantic presentation.Presenter
+	var protocol a2ui.Presenter
+	surfaceStarted := false
+	outputChars := 0
+	pending, pendingID := "", ""
+	firstText := true
+	appendMessage := func(writeCtx context.Context, m event.Message) error {
+		batch := []event.Message{m}
+		for _, view := range semantic.Present(m) {
+			batch = append(batch, event.New("presentation.event", view))
+			if view.Kind == "text-delta" {
+				continue
+			}
+			if !surfaceStarted {
+				batch = append(batch, protocolMessage(protocol.Start()))
+				surfaceStarted = true
+			}
+			for _, msg := range protocol.Render(view) {
+				batch = append(batch, protocolMessage(msg))
+			}
+		}
+		return s.repo.Append(writeCtx, r.ID, batch, "")
+	}
+	flush := func(writeCtx context.Context) error {
+		if pending == "" {
+			return nil
+		}
+		text := pending
+		pending = ""
+		return appendMessage(writeCtx, event.New("model.text_delta", event.TextDelta{MessageID: pendingID, Text: text}))
+	}
 	defer func() {
 		if ctx.Err() != nil {
 			status = "interrupted"
 		}
 		finalCtx, c := context.WithTimeout(context.Background(), 3*time.Second)
 		defer c()
-		if err := s.repo.Append(finalCtx, r.ID, []event.Message{event.New("run."+status, map[string]any{})}, status); err != nil {
+		if err := flush(finalCtx); err != nil {
+			status = "failed"
+			s.log.Error("flush text", "error", err)
+		}
+		finish := []event.Message{event.New("model.response", map[string]any{"adapter": "mock", "externalCall": false, "status": status, "outputCharacters": outputChars, "durationMs": time.Since(startedAt).Milliseconds()}), event.New("run."+status, map[string]any{})}
+		if err := s.repo.Append(finalCtx, r.ID, finish, status); err != nil {
 			s.log.Error("finish run", "run_id", r.ID, "error", err)
 		}
 	}()
-	var semantic presentation.Presenter
-	var protocol a2ui.Presenter
-	if err := s.repo.Append(ctx, r.ID, []event.Message{protocolMessage(protocol.Start())}, ""); err != nil {
+	if err := s.repo.Append(ctx, r.ID, []event.Message{event.New("model.request", map[string]any{"adapter": "mock", "externalCall": false, "request": req, "textBuffer": map[string]any{"maxWaitMs": 50, "maxCharacters": 128, "firstChunkImmediate": true}})}, ""); err != nil {
 		status = "failed"
 		return
 	}
-	stream, err := s.agent.Run(ctx, agent.Request{Prompt: in.Prompt, ScenarioID: in.ScenarioID})
+	stream, err := s.agent.Run(ctx, req)
 	if err != nil {
 		status = "failed"
-		if e := s.repo.Append(ctx, r.ID, []event.Message{event.New("error.occurred", event.ErrorOccurred{Code: "agent_start", Message: err.Error()})}, ""); e != nil {
+		if e := appendMessage(ctx, event.New("error.occurred", event.ErrorOccurred{Code: "agent_start", Message: err.Error()})); e != nil {
 			s.log.Error("persist agent error", "error", e)
 		}
 		return
 	}
+	tick := time.NewTicker(50 * time.Millisecond)
+	defer tick.Stop()
 	for {
 		select {
 		case <-ctx.Done():
 			return
+		case <-tick.C:
+			if err = flush(ctx); err != nil {
+				status = "failed"
+				return
+			}
 		case m, ok := <-stream:
 			if !ok {
+				return
+			}
+			if m.Kind == "model.text_delta" {
+				id, _ := m.Payload["messageId"].(string)
+				text, _ := m.Payload["text"].(string)
+				if pendingID != id {
+					if err = flush(ctx); err != nil {
+						status = "failed"
+						return
+					}
+				}
+				pendingID = id
+				pending += text
+				outputChars += utf8.RuneCountInString(text)
+				if firstText || utf8.RuneCountInString(pending) >= 128 {
+					firstText = false
+					if err = flush(ctx); err != nil {
+						status = "failed"
+						return
+					}
+				}
+				continue
+			}
+			if err = flush(ctx); err != nil {
+				status = "failed"
 				return
 			}
 			if m.Kind == "input.required" || m.Kind == "approval.required" {
@@ -156,20 +251,20 @@ func (s *Service) execute(parent context.Context, r Run, in Create) {
 			if m.Kind == "error.occurred" {
 				status = "failed"
 			}
-			batch := []event.Message{m}
-			for _, view := range semantic.Present(m) {
-				batch = append(batch, event.New("presentation.event", view))
-				for _, msg := range protocol.Render(view) {
-					batch = append(batch, protocolMessage(msg))
-				}
-			}
-			if err = s.repo.Append(ctx, r.ID, batch, ""); err != nil {
-				s.log.Error("persist event", "run_id", r.ID, "error", err)
+			if err = appendMessage(ctx, m); err != nil {
+				s.log.Error("persist event", "error", err)
 				status = "failed"
 				return
 			}
 		}
 	}
+}
+func (s *Service) Conversation(ctx context.Context, id string) ([]Run, error) {
+	run, err := s.repo.Get(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+	return s.repo.Conversation(ctx, run.ConversationID)
 }
 func (s *Service) Get(ctx context.Context, id string) (Run, error) { return s.repo.Get(ctx, id) }
 func (s *Service) List(ctx context.Context, offset int) ([]Run, error) {
@@ -195,6 +290,13 @@ func (s *Service) Action(ctx context.Context, id string, a action.Envelope) (Run
 	r, err := s.repo.Get(ctx, id)
 	if err != nil {
 		return r, err
+	}
+	history, err := s.repo.Conversation(ctx, r.ConversationID)
+	if err != nil {
+		return r, err
+	}
+	if history[len(history)-1].ID != id {
+		return r, fmt.Errorf("%w: actions on earlier turns are read-only", fault.ErrConflict)
 	}
 	result, err := action.Route(a, id, r.ScenarioID)
 	if err != nil {

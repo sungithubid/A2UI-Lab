@@ -25,3 +25,13 @@ Run `make fmt`, `make test`, `make verify` before delivery. Do not point tests a
 user's data directory. Smoke/E2E create isolated databases via `scripts/harness.mjs`.
 Use the CLI backup command before rehearsing a migration against an existing database.
 See [verification](verification.md) for the quality gate and [sqlc](sqlc.md) for generation.
+
+Hybrid chat uses `web/src/lib/chat.ts` to reduce the same event prefix into Markdown
+blocks and Surface positions. Markdown uses react-markdown/remark-gfm, skips HTML,
+filters URLs and does not fetch embedded remote images. Preserve stable component
+identity while streaming so unrelated updates cannot reset form drafts.
+
+Context assembly lives in `internal/modules/lab/context.go`. Keep `agent.Request`
+provider-neutral and inspect its actual persisted snapshot before adding a real
+adapter. Never infer request parameters from the final UI or label Mock traces as
+real LLM calls. All context truncation must be explicit in trace metadata.

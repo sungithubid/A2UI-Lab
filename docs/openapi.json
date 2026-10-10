@@ -13,6 +13,14 @@
             "readOnly": true,
             "type": "string"
           },
+          "conversationId": {
+            "maxLength": 100,
+            "type": "string"
+          },
+          "parentRunId": {
+            "maxLength": 100,
+            "type": "string"
+          },
           "prompt": {
             "maxLength": 2000,
             "minLength": 1,
@@ -297,6 +305,9 @@
           "agentType": {
             "type": "string"
           },
+          "conversationId": {
+            "type": "string"
+          },
           "createdAt": {
             "type": "string"
           },
@@ -324,6 +335,10 @@
           },
           "title": {
             "type": "string"
+          },
+          "turnIndex": {
+            "format": "int64",
+            "type": "integer"
           }
         },
         "required": [
@@ -336,7 +351,9 @@
           "agentType",
           "createdAt",
           "finishedAt",
-          "lastSeq"
+          "lastSeq",
+          "conversationId",
+          "turnIndex"
         ],
         "type": "object"
       },
@@ -622,6 +639,43 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/Run"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        }
+      }
+    },
+    "/api/runs/{id}/conversation": {
+      "get": {
+        "operationId": "get-run-conversation",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RunsOutputBody"
                 }
               }
             },

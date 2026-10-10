@@ -55,6 +55,12 @@ type ScenariosOutput struct {
 }
 
 func Register(api huma.API, s *Service) {
+	huma.Register(api, huma.Operation{OperationID: "get-run-conversation", Method: "GET", Path: "/api/runs/{id}/conversation"}, func(ctx context.Context, in *ItemInput) (*RunsOutput, error) {
+		out := &RunsOutput{}
+		var err error
+		out.Body.Items, err = s.Conversation(ctx, in.ID)
+		return out, httpx.Error(err)
+	})
 	huma.Register(api, huma.Operation{OperationID: "delete-all-runs", Method: "DELETE", Path: "/api/runs", MaxBodyBytes: 1024, Summary: "Stop and delete all runs and their events"}, func(ctx context.Context, in *DeleteAllInput) (*DeleteAllOutput, error) {
 		result, err := s.DeleteAll(ctx, in.Body.Confirm)
 		return &DeleteAllOutput{Body: result}, httpx.Error(err)

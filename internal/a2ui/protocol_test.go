@@ -15,10 +15,14 @@ func TestSemanticPresentationProtocolBoundary(t *testing.T) {
 	}
 	inputs := []event.Message{event.New("model.text_delta", event.TextDelta{Text: "hello "}), event.New("model.text_delta", event.TextDelta{Text: "world"}), event.New("tool.started", event.ToolStarted{Name: "get_server_metrics"}), event.New("agent.progress", event.Progress{Message: "loading", Percent: 50}), event.New("tool.completed", event.ToolCompleted{Name: "get_server_metrics", Result: map[string]any{"cpu": 32}})}
 	count := 0
+	textDeltas := []string{}
 	for _, input := range inputs {
 		for _, m := range semantic.Present(input) {
-			if m.Kind == "text" && count == 1 && m.Text != "hello world" {
-				t.Fatal("text not accumulated")
+			if m.Kind == "text-delta" {
+				textDeltas = append(textDeltas, m.Text)
+				if len(adapter.Render(m)) != 0 {
+					t.Fatal("narrative leaked into A2UI")
+				}
 			}
 			for _, msg := range adapter.Render(m) {
 				if err := Validate(msg); err != nil {
@@ -28,7 +32,7 @@ func TestSemanticPresentationProtocolBoundary(t *testing.T) {
 			}
 		}
 	}
-	if count < 6 {
+	if count != 5 || len(textDeltas) != 2 || textDeltas[0] != "hello " || textDeltas[1] != "world" {
 		t.Fatal("mapping missing")
 	}
 }

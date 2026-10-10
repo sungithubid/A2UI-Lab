@@ -121,6 +121,10 @@ func (p *Presenter) Start() Message {
 	return Message{Version: Version, CreateSurface: &Surface{SurfaceID: "main", CatalogID: CatalogID}}
 }
 func (p *Presenter) Render(m presentation.Model) []Message {
+	// Narrative deltas use the Markdown channel. Text inside cards still uses A2UI.
+	if m.Kind == "text-delta" {
+		return nil
+	}
 	if !p.seen[m.ID] {
 		p.seen[m.ID] = true
 		p.children = append(p.children, m.ID)
