@@ -35,22 +35,34 @@ test('hybrid chat carries server history into the real Mock request and restores
     page.locator('.chat-turn').first().getByRole('button', { name: 'View errors' }),
   ).toBeDisabled()
   const trace = JSON.parse((await page.getByTestId('trace-input').textContent())!)
-  expect(trace.externalCall).toBe(false)
-  expect(trace.request.messages[1]).toMatchObject({
+  expect(Object.keys(trace)).toEqual(['messages'])
+  expect(trace.messages[1]).toEqual({
     role: 'user',
     content: 'Remember the atlas rollout',
-    sourceRunId: first,
   })
   const stored = await (await page.request.get(`/api/runs/${second}/events`)).json()
-  expect(trace).toEqual(
+  expect(trace.messages.at(-1)).toEqual({ role: 'user', content: 'What was my previous question?' })
+  expect(trace.messages[2].content).toContain('Recorded UI context')
+  expect(trace.messages[2].content).toContain('get_server_metrics')
+  for (const message of trace.messages) expect(Object.keys(message)).toEqual(['role', 'content'])
+  await page.getByText('Mock runtime / original snapshot', { exact: true }).click()
+  const original = JSON.parse((await page.getByTestId('trace-raw-input').textContent())!)
+  expect(original.externalCall).toBe(false)
+  expect(original.textBuffer.maxWaitMs).toBe(50)
+  expect(original.request.messages[1].sourceRunId).toBe(first)
+  expect(original).toEqual(
     stored.items.find((e: { kind: string }) => e.kind === 'model.request').payload,
   )
   expect(stored.items.some((e: { kind: string }) => e.kind === 'a2ui.message')).toBe(false)
+  await page.getByText('Mock runtime / original snapshot', { exact: true }).click()
   await current.locator('.user-bubble').evaluate((el) => {
     const scroll = el.closest('.chat-scroll')!
     scroll.scrollTop += el.getBoundingClientRect().top - scroll.getBoundingClientRect().top - 12
   })
   await expect(page.getByTestId('trace-output')).toContainText('"status": "completed"')
+  await page.locator('.trace-detail').evaluate((el) => {
+    el.scrollTop = 0
+  })
   await page.screenshot({ path: test.info().outputPath('multi-turn-chat.png'), fullPage: true })
   await page.reload()
   await page.getByLabel('Run history').selectOption(second)
@@ -94,21 +106,24 @@ test('pending forms block continuation; submitted contact fields stay out of nex
   await expect(page.getByLabel('Follow-up message')).toBeEnabled({ timeout: 20000 })
   await expect(page.locator('.chat-turn')).toHaveCount(2)
   const trace = await page.getByTestId('trace-input').textContent()
+  const raw = await page.getByTestId('trace-raw-input').textContent()
   expect(trace).toContain('Support ticket created locally')
   for (const privateValue of [
     'Private Person',
     'private@example.test',
     'Private issue description',
-  ])
+  ]) {
     expect(trace).not.toContain(privateValue)
+    expect(raw).not.toContain(privateValue)
+  }
   await expect(page.locator('.chat-turn').first().getByLabel('Email *')).toHaveValue(
     'private@example.test',
   )
   await expect(page.locator('.chat-turn').first().getByLabel('Email *')).toBeDisabled()
   await page.getByRole('button', { name: 'New run', exact: true }).click()
-  await expect(page.getByTestId('trace-input')).toContainText('"uiContext": []')
+  await expect(page.getByTestId('trace-input')).not.toContainText('Support ticket created locally')
   await expect(page.locator('.chat-turn')).toHaveCount(1)
   const isolated = JSON.parse((await page.getByTestId('trace-input').textContent())!)
-  expect(isolated.request.messages).toHaveLength(2)
-  expect(isolated.request.messages.some((m: { sourceRunId?: string }) => m.sourceRunId)).toBe(false)
+  expect(isolated.messages).toHaveLength(2)
+  expect(isolated.messages.some((m: { sourceRunId?: string }) => m.sourceRunId)).toBe(false)
 })

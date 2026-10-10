@@ -43,3 +43,8 @@ Markdown tests cover GFM, incomplete streaming syntax, blocked HTML/unsafe URLs 
 remote images. Browser flows verify bubble alignment, request/tool inspection,
 context-aware Mock follow-ups, reload, prior-turn read-only actions, replay and mobile
 layout. Binary smoke restarts and compares saved multi-turn context and trace events.
+
+Request-preview coverage verifies role/content ordering, Chinese text preservation,
+UI fact placement in assistant turns, prompt deduplication, immutable source snapshots,
+and diagnostics for malformed or unmatched context. Browser tests compare the
+expanded original snapshot with persisted events and restore the preview on reload.

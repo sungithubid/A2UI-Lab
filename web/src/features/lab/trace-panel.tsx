@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { GitBranch } from 'lucide-react'
-import { object } from '@/lib/a2ui'
+import { chatRequestPreview } from '@/lib/chat-request'
 import { relativeTime, type LabEvent, type Run } from '@/lib/events'
 
 type Span = {
@@ -112,6 +112,7 @@ export function TracePanel({
       },
     })
   const selected = spans.find((s) => s.id === selection) ?? spans[0]
+  const preview = selected?.id === 'model' ? chatRequestPreview(selected.input) : undefined
   const total = Math.max(1, latest && first ? relativeTime(latest, first) : 1)
   return (
     <section className="panel trace-panel">
@@ -178,13 +179,31 @@ export function TracePanel({
               {selected.end && ` → #${selected.end.seq}`} ·{' '}
               {selected.end ? 'Recorded' : 'In progress'}
             </p>
-            <h4>{selected.id === 'model' ? 'Request parameters' : 'Input'}</h4>
-            <pre data-testid="trace-input">{JSON.stringify(selected.input, null, 2)}</pre>
-            {selected.id === 'model' && object(selected.input) && (
-              <p className="trace-caption">
-                Exact application request passed to the Mock adapter. This is not an LLM HTTP
-                payload.
-              </p>
+            <h4>{preview ? 'Request parameters · OpenAI-compatible' : 'Input'}</h4>
+            {preview ? (
+              <>
+                <p className="trace-caption">
+                  Chat Completions messages preview. No external request or model is configured. UI
+                  facts are included in the corresponding assistant message.
+                </p>
+                {preview.error ? (
+                  <p role="alert" className="issue">
+                    {preview.error}
+                  </p>
+                ) : (
+                  <pre data-testid="trace-input">{JSON.stringify(preview.request, null, 2)}</pre>
+                )}
+                <details className="trace-runtime" key={selected.start.id}>
+                  <summary>Mock runtime / original snapshot</summary>
+                  <p className="trace-caption">
+                    Exact recorded Mock input, including scenario, source run IDs and text buffer
+                    settings.
+                  </p>
+                  <pre data-testid="trace-raw-input">{JSON.stringify(selected.input, null, 2)}</pre>
+                </details>
+              </>
+            ) : (
+              <pre data-testid="trace-input">{JSON.stringify(selected.input, null, 2)}</pre>
             )}
             <h4>Output / status</h4>
             <pre data-testid="trace-output">

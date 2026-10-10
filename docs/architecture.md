@@ -80,3 +80,8 @@ Trace is a projection of persisted context/request/response, tool, action and pr
 events. The exact application Request passed to Mock is persisted before invocation;
 output metadata measures elapsed time and output characters, not tokens or cost.
 No external LLM HTTP request exists in this slice. See ADR 0009.
+
+The request inspector defaults to a Chat Completions role/content messages preview.
+It is derived from the immutable Mock snapshot, with UI facts retained in their
+assistant turn and runtime metadata shown separately. No provider is configured;
+see ADR 0010 for the display-only boundary and malformed-input diagnostics.

@@ -1065,3 +1065,14 @@ input:focus-visible {
   border-radius: 5px;
   padding: 6px;
 }
+
+.trace-runtime {
+  margin: 12px 0;
+  border-top: 1px solid var(--border);
+  padding-top: 12px;
+}
+.trace-runtime summary {
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 600;
+}

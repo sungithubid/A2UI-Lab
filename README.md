@@ -49,7 +49,7 @@ make dev
 
 **New run** starts a new conversation. Once a turn finishes, choose **Next scenario**, enter a follow-up in the chat composer, and click **Send message**. Resolve pending forms/approvals first. Earlier turns retain Markdown, surfaces, and submitted results. Use **Inspect turn** / **Trace turn** to inspect a turn and **Return to latest** to resume; historical actions and replay submissions are read-only.
 
-The left **Trace** panel shows context construction, Agent requests, tools, actions, and A2UI output with timings and JSON. Select the request span to inspect the exact `prompt`, `scenarioId`, `messages`, and `uiContext` passed to Mock. No external LLM is called, and no provider HTTP parameters, token counts, or costs are fabricated. Follow-ups use a deterministic template to demonstrate the received context.
+The left **Trace** panel shows context construction, Agent requests, tools, actions, and A2UI output with timings and JSON. Select the request span to inspect an OpenAI Chat Completions-compatible `messages` preview, with only `role` and `content` in each message. UI semantic facts are appended to their original assistant turn. Expand **Mock runtime / original snapshot** for the exact recorded request, including `prompt`, `scenarioId`, `uiContext`, source run IDs and text buffer settings. The preview is not an HTTP request; no model or sampling parameters are invented. No external LLM is called, and no provider HTTP parameters, token counts, or costs are fabricated. Follow-ups use a deterministic template to demonstrate the received context.
 
 The client submits only the new prompt, scenario, `conversationId`, and `parentRunId`. The backend builds context from persisted events: at most eight previous whole turns, within 32,000 serialized UTF-8 bytes for the entire request. Whole-turn omissions are visible in Trace. Conversations are limited to 100 turns. UI enters context as semantic facts rather than full component trees.
 
@@ -151,5 +151,6 @@ make verify   # Full gate check
 - [Local Lab Decision Record (ADR 0007)](docs/decisions/0007-local-event-lab.md)
 - [Persisted Human Interaction (ADR 0008)](docs/decisions/0008-persisted-human-interaction.md)
 - [Hybrid Conversations and Traces (ADR 0009)](docs/decisions/0009-hybrid-conversations-and-traces.md)
+- [Chat Completions Request Preview (ADR 0010)](docs/decisions/0010-chat-request-preview.md)
 - [Development Workflow](docs/development.md)
 - [Verification Baseline](docs/verification.md)

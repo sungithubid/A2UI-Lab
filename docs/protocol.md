@@ -118,3 +118,19 @@ The trace viewer derives spans from these ordered events, including interruption
 Continuation makes previous-turn actions read-only (409). Resolve pending inputs
 first. Deleting a run removes its events and, if empty, its conversation; request
 snapshots already stored in later runs are historical records and remain intact.
+
+### Chat Completions messages preview
+
+Trace projects the saved `model.request.request` into `{ "messages": [...] }`.
+Each message contains only `role` and string `content`. Historical UI semantic facts
+are appended as labeled data to the assistant message with the matching source run;
+they are never promoted into system instructions or fabricated tool-call messages.
+The current prompt is already the final user message and is not duplicated.
+Missing or malformed saved context yields an explicit diagnostic and the original
+snapshot remains inspectable. Existing stored runs use the same projection.
+
+This is a read-only compatibility preview, not a complete provider HTTP request:
+no model or sampling parameters are configured. Runtime fields, including scenario,
+source IDs, textBuffer, adapter and externalCall, remain in the collapsed original
+snapshot. Persisted events and the actual Mock request contract are unchanged.
+See [ADR 0010](decisions/0010-chat-request-preview.md).

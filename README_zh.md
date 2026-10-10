@@ -49,7 +49,7 @@ make dev
 
 **New run** 创建新会话。当前轮结束后，在聊天底部选择 **Next scenario**、输入追问并点击 **Send message**，继续同一会话。表单与审批必须先处理完成。历史轮次保留 Markdown、组件和提交结果；**Inspect turn** / **Trace turn** 切换检查对象，**Return to latest** 返回最新轮，历史交互与回放中的提交按钮只读。
 
-左侧 **Trace** 展示上下文构建、Agent 请求、工具调用、Action 和 A2UI 输出的耗时与 JSON。选择请求节点可查看实际传给 Mock 的 `prompt`、`scenarioId`、`messages` 和 `uiContext`。当前没有调用外部 LLM；没有虚构供应商 HTTP 参数、token 用量或费用。Mock 追问使用确定性模板展示收到的历史上下文。
+左侧 **Trace** 展示上下文构建、Agent 请求、工具调用、Action 和 A2UI 输出的耗时与 JSON。选择请求节点默认显示 OpenAI Chat Completions 兼容的 `messages` 预览，每条消息只包含 `role` 和 `content`，UI 语义事实附加在对应历史 assistant 消息内。展开 **Mock runtime / original snapshot** 可查看实际记录的完整请求，包括 `prompt`、`scenarioId`、`uiContext`、来源 run ID 和文本缓冲设置。预览不是 HTTP 请求，不填入未配置的模型与采样参数。当前没有调用外部 LLM；没有虚构供应商 HTTP 参数、token 用量或费用。Mock 追问使用确定性模板展示收到的历史上下文。
 
 前端仅提交新 prompt、场景、`conversationId` 和 `parentRunId`。后端从已持久化事件构建最近最多 8 轮完整历史，整个请求不超过 32,000 个 UTF-8 序列化字节；超限按完整轮次省略，并在 Trace 中明确记录。每个会话最多 100 轮。UI 通过语义事实进入上下文，不回传整棵组件树。
 
@@ -152,5 +152,6 @@ make verify   # 全量门禁校验
 - [本地实验室架构决策 (ADR 0007)](docs/decisions/0007-local-event-lab.md)
 - [持久化交互架构决策 (ADR 0008)](docs/decisions/0008-persisted-human-interaction.md)
 - [混合聊天、上下文与 Trace 决策 (ADR 0009)](docs/decisions/0009-hybrid-conversations-and-traces.md)
+- [Chat Completions 请求预览决策 (ADR 0010)](docs/decisions/0010-chat-request-preview.md)
 - [开发指南 (Development)](docs/development.md)
 - [验证规范 (Verification)](docs/verification.md)
