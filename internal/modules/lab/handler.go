@@ -55,6 +55,10 @@ type ScenariosOutput struct {
 }
 
 func Register(api huma.API, s *Service) {
+	huma.Register(api, huma.Operation{OperationID: "stop-run", Method: "POST", Path: "/api/runs/{id}/stop", Summary: "Stop execution and preserve partial output"}, func(ctx context.Context, in *ItemInput) (*RunOutput, error) {
+		r, err := s.Stop(ctx, in.ID)
+		return &RunOutput{Body: r}, httpx.Error(err)
+	})
 	huma.Register(api, huma.Operation{OperationID: "get-run-conversation", Method: "GET", Path: "/api/runs/{id}/conversation"}, func(ctx context.Context, in *ItemInput) (*RunsOutput, error) {
 		out := &RunsOutput{}
 		var err error

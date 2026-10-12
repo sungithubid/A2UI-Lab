@@ -30,6 +30,7 @@ func Scenarios() []Scenario {
 		{"server-health", "Server health", "Text, tool call, progress, result, bound card and a View errors action."},
 		{"streaming-text", "Streaming text", "Deterministic incremental text without external services."},
 		{"tool-error", "Tool error", "An explicit tool failure that remains inspectable and replayable."},
+		{"stream-error", "Stream error · partial output", "Markdown arrives before a simulated upstream failure; partial output remains replayable."},
 		{"image-card", "Image card · resource discovery", "An illustrated recommendation linking to official documentation."},
 		{"image-list", "Image list · search results", "Three streaming results with a thumbnail on the left and text on the right."},
 		{"support-form", "Form · support ticket", "Collect details, validate input and persist a local demo ticket."},
@@ -42,11 +43,12 @@ type Create struct {
 	ConversationID string `json:"conversationId,omitempty" maxLength:"100"`
 	ParentRunID    string `json:"parentRunId,omitempty" maxLength:"100"`
 	Prompt         string `json:"prompt" minLength:"1" maxLength:"2000"`
-	ScenarioID     string `json:"scenarioId" enum:"server-health,streaming-text,tool-error,image-card,image-list,support-form,deployment-approval,plan-decision"`
+	ScenarioID     string `json:"scenarioId" enum:"server-health,streaming-text,tool-error,stream-error,image-card,image-list,support-form,deployment-approval,plan-decision"`
 }
 type worker struct {
-	cancel context.CancelFunc
-	done   chan struct{}
+	cancel        context.CancelFunc
+	done          chan struct{}
+	stopRequested bool
 }
 
 type Service struct {
@@ -284,6 +286,41 @@ func (s *Service) Delete(ctx context.Context, id string) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	return s.repo.Delete(ctx, id)
+}
+
+// Stop cancels execution, not delivery. Drain the worker before acknowledging so
+// the response includes the persisted terminal state and all buffered text.
+func (s *Service) Stop(ctx context.Context, id string) (Run, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	r, err := s.repo.Get(ctx, id)
+	if err != nil {
+		return r, err
+	}
+	if r.Status == "interrupted" {
+		return r, nil
+	}
+	w := s.workers[id]
+	if r.Status != "running" || w == nil {
+		return r, fmt.Errorf("%w: only an active run can be stopped", fault.ErrConflict)
+	}
+	if err := ctx.Err(); err != nil {
+		return r, err
+	}
+	if !w.stopRequested {
+		if err := s.repo.Append(ctx, id, []event.Message{event.New("runtime.stop_requested", map[string]any{"source": "user"})}, ""); err != nil {
+			return r, err
+		}
+		w.stopRequested = true
+	}
+	w.cancel()
+	select {
+	case <-w.done:
+		return s.repo.Get(ctx, id)
+	case <-ctx.Done():
+		// Cancellation was accepted; the worker still persists its final batch.
+		return r, ctx.Err()
+	}
 }
 func (s *Service) Action(ctx context.Context, id string, a action.Envelope) (Run, error) {
 	s.mu.Lock()

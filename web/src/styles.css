@@ -168,6 +168,10 @@
   align-items: center;
   gap: 8px;
 }
+.run-bar > div {
+  flex-wrap: wrap;
+  max-width: 100%;
+}
 .lab-grid {
   display: grid;
   grid-template-columns: minmax(220px, 0.85fr) minmax(280px, 1.2fr) minmax(280px, 1fr);
@@ -490,6 +494,38 @@ input:focus-visible {
   font-size: 12px;
   color: #78817d;
   margin: 10px 0;
+}
+
+.learning-panel {
+  margin: 0 0 18px;
+  border: 1px solid #dce3dd;
+  border-radius: 12px;
+  background: #ffffff;
+  min-width: 0;
+}
+.learning-panel > summary {
+  padding: 12px 16px;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 600;
+}
+.learning-content {
+  padding: 0 16px 16px;
+  font-size: 13px;
+  line-height: 1.6;
+  overflow-wrap: anywhere;
+}
+.learning-content p {
+  margin: 10px 0;
+}
+.learning-events,
+.learning-exercises {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.learning-hint {
+  color: #78817d;
 }
 .resource-card {
   display: block;

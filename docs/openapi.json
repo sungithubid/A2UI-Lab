@@ -31,6 +31,7 @@
               "server-health",
               "streaming-text",
               "tool-error",
+              "stream-error",
               "image-card",
               "image-list",
               "support-form",
@@ -741,6 +742,44 @@
             "description": "Error"
           }
         }
+      }
+    },
+    "/api/runs/{id}/stop": {
+      "post": {
+        "operationId": "stop-run",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Run"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "summary": "Stop execution and preserve partial output"
       }
     },
     "/api/scenarios": {

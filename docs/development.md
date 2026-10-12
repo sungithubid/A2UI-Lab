@@ -35,3 +35,9 @@ Context assembly lives in `internal/modules/lab/context.go`. Keep `agent.Request
 provider-neutral and inspect its actual persisted snapshot before adding a real
 adapter. Never infer request parameters from the final UI or label Mock traces as
 real LLM calls. All context truncation must be explicit in trace metadata.
+
+Start P0 onboarding with [the interaction teaching guide](learning.md)
+([中文](learning_zh.md)): each scenario maps request → event → UI → Action → context
+to its implementation files. Add a Learning lab recipe when adding a scenario; its
+typed keys must match the generated Create scenario union. Keep exercises on the
+existing lifecycle/Action APIs rather than introducing a parallel debug backend.

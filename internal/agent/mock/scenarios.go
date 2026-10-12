@@ -12,6 +12,11 @@ func interactiveScenario(id string) ([]event.Message, bool) {
 		return event.New("model.text_delta", event.TextDelta{MessageID: "answer", Text: text})
 	}
 	switch id {
+	case "stream-error":
+		return []event.Message{start,
+			intro("## Partial answer\n\nThese paragraphs arrived before a simulated upstream stream failure.\n\n- Already received text stays visible.\n- The pending text buffer is flushed before the error.\n- Replay reads this saved prefix without calling the Agent again.\n\nThis is deliberately incomplete: **the next part never arrives"),
+			event.New("error.occurred", event.ErrorOccurred{Code: "mock_stream_disconnected", Message: "Simulated upstream stream failure after partial text. No external model was called."}),
+		}, true
 	case "image-card":
 		return []event.Message{start, intro("Here is a resource to explore. Open the image card to read the official documentation."), event.New("resource.recommended", resource("Build with A2UI", "Explore a declarative protocol for interactive Agent interfaces.", "/scenario-images/protocol.svg", "https://a2ui.org/")), end}, true
 	case "image-list":

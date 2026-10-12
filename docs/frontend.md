@@ -11,3 +11,12 @@ REST DTOs are generated in `src/generated/api.ts`; do not hand-edit them. Protoc
 state is local renderer state, validated from unknown JSON at its boundary. API and
 protocol types are not business logic. Existing local UI and i18n primitives remain
 available, but the first Lab screen uses English. No second UI framework is introduced.
+
+Learning lab is a collapsed teaching panel with a typed recipe for each scenario and
+buttons selecting actual visible event checkpoints. It offers exact Action retries
+and manual SSE delivery disconnection. A new EventSource resumes from the contiguous
+cached prefix, never the maximum observed seq; automatic reconnect retains native
+Last-Event-ID behavior. Stop run uses the generated lifecycle endpoint. Replay and
+historical turns disable these controls. Drafts/connection state/exercise receipts
+are local UI state; conversation text, surfaces and outcomes remain event-derived.
+See [the learning guide](learning.md).

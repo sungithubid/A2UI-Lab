@@ -91,3 +91,18 @@ The semantic decision.required payload owns candidate definitions; action valida
 reads them from the run log. LabChoice renders immediate candidate confirmation and
 custom input, while the server atomically persists the resolved choice and locked
 snapshot. No new database schema or long-lived Agent worker is introduced. See ADR 0011.
+
+## Interaction teaching baseline
+
+Nine Mock scenarios include a partial-stream failure fixture. Stop is a typed lifecycle
+operation, separate from component Actions: it records runtime.stop_requested, cancels
+and drains the active worker, and returns the persisted terminal state. Received text
+is flushed during finalization. Already interrupted stops are idempotent; inactive
+completed/failed/waiting_input records reject stop. A completion race returns the
+actual saved state. Caller disconnection does not undo accepted cancellation.
+
+Learning lab recipes select saved event checkpoints. Manual SSE reconnect uses the
+last contiguous cached seq; automatic reconnect uses Last-Event-ID. Disconnection
+does not cancel Agent execution. The Action retry exercise sends the exact saved
+envelope and relies on the existing atomic single-interaction contract. Replay and
+historical inspection disable exercise controls. See ADR 0012 and the learning guide.

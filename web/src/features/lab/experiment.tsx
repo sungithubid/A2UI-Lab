@@ -12,9 +12,11 @@ import type { components } from '@/generated/api'
 import { ProtocolPanel } from '@/features/inspector/protocol-panel'
 import { fetchEvents, useEvents } from './use-events'
 import { TimelineRow } from '@/features/timeline/timeline-row'
+import { LearningPanel } from './learning-panel'
 export function Experiment({ id, onRun }: { id: string; onRun: (id: string) => void }) {
   const client = useQueryClient(),
-    query = useEvents(id),
+    [connected, setConnected] = useState(true),
+    query = useEvents(id, connected),
     events = useMemo(() => query.data ?? [], [query.data]),
     [cursor, setCursor] = useState<number | null>(null),
     [playing, setPlaying] = useState(false),
@@ -91,6 +93,22 @@ export function Experiment({ id, onRun }: { id: string; onRun: (id: string) => v
       void client.invalidateQueries({ queryKey: ['conversation', id] })
     },
   })
+  const stop = useMutation({
+    mutationFn: async () =>
+      required(
+        (
+          await api.POST('/api/runs/{id}/stop', {
+            params: { path: { id } },
+            headers: { 'Content-Type': 'application/json' },
+          })
+        ).data,
+      ),
+    onSuccess: () => {
+      void client.invalidateQueries({ queryKey: ['events', id] })
+      void client.invalidateQueries({ queryKey: ['runs'] })
+      void client.invalidateQueries({ queryKey: ['conversation', id] })
+    },
+  })
   useEffect(() => {
     if (!playing) return
     const timer = setInterval(() => setCursor((n) => Math.min((n ?? 0) + 1, events.length)), 180)
@@ -112,6 +130,14 @@ export function Experiment({ id, onRun }: { id: string; onRun: (id: string) => v
           {visible.length} / {events.length} events · {state.issues.length} validation issues
         </span>
         <div>
+          <Button
+            size="sm"
+            variant="outline"
+            disabled={cursor !== null || complete || status !== 'run.started' || stop.isPending}
+            onClick={() => stop.mutate()}
+          >
+            {stop.isPending ? 'Stopping…' : 'Stop run'}
+          </Button>
           <Button
             size="sm"
             variant="ghost"
@@ -160,6 +186,20 @@ export function Experiment({ id, onRun }: { id: string; onRun: (id: string) => v
           </Button>
         </div>
       </div>
+      <LearningPanel
+        id={id}
+        scenario={run?.scenarioId}
+        events={visible}
+        readOnly={cursor !== null || latest?.id !== id}
+        connected={connected}
+        onConnection={setConnected}
+        onInspect={setSelection}
+      />
+      {stop.error && (
+        <p role="alert" className="issue">
+          {stop.error.message}
+        </p>
+      )}
       {query.error && (
         <p role="alert" className="issue">
           {query.error.message}

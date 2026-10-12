@@ -10,7 +10,8 @@ A local engineering playground for streaming Agent UIs: run deterministic scenar
 
 - **Zero-Config & Standalone**: Pure Go single binary embedding React assets and goose SQLite migrations. Runs instantly without external API keys, accounts, or cloud dependencies.
 - **Hybrid Multi-Turn Chat & Traces**: User bubbles on the right, Agent replies on the left, with streaming Markdown and interleaved A2UI surfaces. Backend-owned history and local traces expose context construction, actual Mock requests, tools, and actions.
-- **Deterministic Scenario Ladder**: 8 built-in progressive scenarios covering streaming text, tool calling, rich media, and human-in-the-loop approvals.
+- **Deterministic Scenario Ladder**: 9 built-in scenarios covering streaming text, partial-stream failure, tool calling, rich media, and human-in-the-loop approvals.
+- **Interaction Teaching Baseline**: Expand Learning lab to inspect scenario event checkpoints, disconnect/reconnect SSE, or retry an exact saved Action. Stop run preserves partial output.
 - **End-to-End Protocol Observability**: Protocol Inspector and Timeline provide real-time inspection of raw JSON envelopes, component hierarchies, data model bindings, and sequential events.
 - **Event-Sourced Deterministic Replay**: Every UI state is fully explainable by a persisted event prefix. Step, Reset, and Play reconstruct state entirely offline without LLM invocations.
 - **Secure Sandboxed Interaction**: Controlled rendering guarantees incoming code/HTML is never dynamically executed. Human-in-the-loop forms and approvals persist cleanly across restarts in `waiting_input`.
@@ -57,13 +58,25 @@ Ordinary prompts and local form events remain stored in SQLite; submitted contac
 
 ---
 
+## Interaction Teaching Baseline (P0)
+
+Start with the [step-by-step learning guide](docs/learning.md). Each scenario explains
+frontend input, persisted events, Agent context, rendering and Action handling, with
+code links and resilience exercises. Expand **Learning lab** on a run to inspect
+its saved event checkpoints. **Disconnect SSE** closes delivery while the Agent
+continues; **Reconnect SSE** catches up from the saved contiguous cursor.
+**Retry last Action** resubmits the exact recorded envelope and demonstrates an
+unchanged event sequence. **Stop run** cancels active execution and preserves received
+text. Replay and earlier-turn inspection disable these mutation/exercise controls.
+
 ## Built-in Scenarios
 
-Built with 8 progressive scenarios illustrating the Agent UI evolution ladder (see [Scenario Ladder](docs/scenarios.md)):
+Built with 8 core scenarios and a partial-stream failure exercise (see [Scenario Ladder](docs/scenarios.md)):
 
 - **Streaming Text (`streaming-text`)**: Buffered Mock chunks rendered as Markdown lists, tables, and code blocks; text-only replies create no A2UI surface.
 - **Server Health (`server-health`)**: Tool calling, execution progress polling, bound status cards, and post-action dispatching.
 - **Tool Failure (`tool-error`)**: Explicit tool failure visualization, error alert cards, and resilient state archiving.
+- **Partial Stream Failure (`stream-error`)**: Incomplete Markdown followed by a simulated upstream error; the saved text and alert survive reload and replay.
 - **Linked Image Card (`image-card`)**: Safe bundled illustration rendering and external documentation links opening in new tabs.
 - **Illustrated Resource List (`image-list`)**: Progressively appended resource components with left-image/right-text layouts.
 - **Support Ticket Form (`support-form`)**: Controlled interactive forms with field validation and event-logged submissions in `waiting_input`.
@@ -148,11 +161,13 @@ make verify   # Full gate check
 
 - [Architecture Guide](docs/architecture.md)
 - [Scenario Evolution Ladder](docs/scenarios.md)
+- [P0 Interaction Teaching Guide](docs/learning.md)
 - [Protocol Subset](docs/protocol.md)
 - [Local Lab Decision Record (ADR 0007)](docs/decisions/0007-local-event-lab.md)
 - [Persisted Human Interaction (ADR 0008)](docs/decisions/0008-persisted-human-interaction.md)
 - [Hybrid Conversations and Traces (ADR 0009)](docs/decisions/0009-hybrid-conversations-and-traces.md)
 - [Chat Completions Request Preview (ADR 0010)](docs/decisions/0010-chat-request-preview.md)
 - [Persisted Plan Decisions (ADR 0011)](docs/decisions/0011-persisted-plan-decisions.md)
+- [Interaction Teaching Baseline (ADR 0012)](docs/decisions/0012-interaction-teaching-baseline.md)
 - [Development Workflow](docs/development.md)
 - [Verification Baseline](docs/verification.md)

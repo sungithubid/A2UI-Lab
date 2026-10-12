@@ -58,3 +58,12 @@ three paths, reload, event-identical replay, Trace action data and mobile overfl
 Inline choice-input coverage verifies that option 3 contains the editable textarea
 without an expansion step, uses stable English labels after confirmation, and
 restores submitted text as read-only during reload/replay.
+
+P0 coverage verifies concurrent/idempotent stops, cancellation-request rejection,
+worker drain and pending-text preservation, terminal-state persistence, inactive-run
+stop conflicts, interrupted context in the next turn, and partial-stream error ordering.
+Hook tests reconnect from a contiguous prefix with gaps and duplicate delivery.
+Browser exercises disconnect delivery while the real embedded backend completes,
+catch up through a nonzero cursor, retry an identical saved Action without new events,
+reject changed choices, inspect teaching checkpoints, and preserve partial output
+through reload/replay. Exercise controls are disabled in replay. See learning.md.

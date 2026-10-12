@@ -89,6 +89,7 @@ export function LabPage() {
                     'server-health': 'Analyze server health',
                     'streaming-text': 'Show a streaming answer',
                     'tool-error': 'Demonstrate a tool failure',
+                    'stream-error': 'Show partial output followed by a stream failure',
                     'image-card': 'Recommend an Agent UI resource',
                     'image-list': 'Find resources for building a local Agent UI lab',
                     'support-form': 'Help me open a support ticket',

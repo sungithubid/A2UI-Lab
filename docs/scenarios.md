@@ -1,6 +1,8 @@
 # A2UI Lab 场景能力与架构演进阶梯 (Evolution Ladder)
 
-本文档系统性说明 A2UI Lab 中内置的 **8 个核心场景** 所演示的能力、底层架构机制，以及从简单流式到复杂双向人机协同的 **设计哲学与演进阶梯（Evolution Ladder）**。
+本文档说明 **8 个核心场景与 1 个部分输出失败练习** 的能力及实现。
+逐个追踪请求、持久化事件、组件、Action 和后续上下文，请阅读
+[P0 交互教学指南](learning_zh.md)。页面 Learning lab 提供对应事件检查点和异常练习。
 
 ---
 
@@ -35,9 +37,9 @@ SSE → 聊天 / Trace / Protocol Inspector → 事件前缀重放
 
 ---
 
-## 二、八大场景的演进阶梯 (The Evolution Ladder)
+## 二、核心场景与失败练习的演进阶梯 (The Evolution Ladder)
 
-项目内置的 8 个场景绝非零散用例，而是沿着 Agent UI 复杂度梯次递进的 **演进阶梯**：
+8 个核心场景沿着 Agent UI 复杂度递进；stream-error 补充部分输出失败的练习：
 
 ```mermaid
 flowchart TD
@@ -52,9 +54,10 @@ flowchart TD
         S5["image-list (流式渐进追加与布局变体复用)"]
     end
 
-    subgraph L2 ["Level 2: 工具可观测性与异常自愈 (Observability & Resilience)"]
+    subgraph L2 ["Level 2: 工具可观测性与显式失败 (Observability & Resilience)"]
         S2["server-health (工具执行、进度监控、卡片数据绑定与事后 Action)"]
         S3["tool-error (显式工具失败的可视化告警与状态归档)"]
+        S9["stream-error (部分 Markdown 后的上游失败)"]
     end
 
     subgraph L1 ["Level 1: 文本流式与展示解耦 (Streaming Text)"]
@@ -110,6 +113,15 @@ flowchart TD
 
 ---
 
+#### 失败练习：`stream-error`（部分文本后上游失败）
+
+- **Prompt 示例**：`Show partial output followed by a stream failure`。
+- **事件链路**：先输出 `model.text_delta`，再输出 `error.occurred`
+  （`mock_stream_disconnected`）；保存文本缓冲后生成 `LabAlert`，以 `run.failed` 结束。
+- **观察**：不完整 Markdown 留在对话内；刷新和回放保留文本与错误，回放不调用 Agent。
+  追问上下文保留部分文本、failed 状态和错误语义事实。
+- **边界**：这是确定性上游失败夹具，不是断开浏览器 SSE；后者仅影响交付，不终止 Agent。
+
 ### Level 3：生成式富媒体与渐进式流 (Generative UI & Progressive Stream)
 
 #### 4. `image-card`（图文资源发现卡片）
@@ -143,13 +155,13 @@ flowchart TD
 #### 6. `deployment-approval`（高危操作审批打断与恢复）
 - **Prompt 示例**：`Prepare a staging deployment for my review`
 - **演示的核心能力**：
-  - **人机协同（HITL）暂停与唤醒**：Agent 遇到高危发布动作时主动挂起，进入低功耗 `waiting_input` 状态。
+  - **持久化人机等待**：Mock 输出审批请求后进入 `waiting_input`，工作协程退出；没有悬挂的模型调用或 Agent checkpoint。
   - **双向意图闭环**：用户在 UI 点击 `Approve` / `Reject` $\to$ 触发标准 Action $\to$ 由服务端执行确定性的 Mock 后续动作。
   - **多画布（Multi-Surface）协同**：创建新的 `action-result` 画布展示部署回执，同时将原审批卡片置灰锁定（`disabled: true`）。
 - **架构机制**：
   - Agent 触发 `approval.required`，Run 切换为 `waiting_input`，工作协程退出，等待外部驱动。
   - 用户操作提交标准信封 `POST /api/runs/{id}/actions`；
-  - 服务端 Action Router 校验合法性后广播 `approval.resolved` 并由动作处理器执行 `deploy_staging_mock` 模拟工具。
+  - 服务端 Action Router 校验后保存 `approval.resolved`，由动作处理器执行 `deploy_staging_mock` 模拟工具；SSE 从已提交事件中读取。
   - A2UI 下发两条消息：一条创建 `surfaceId: "action-result"` 呈现凭据，另一条修改主画布组件为 `disabled: true`，彻底消除二次点击冲突。
 - **设计哲学**：
   - 核心业务不能盲目让 Agent 自动全权操作。将人类决策作为可审计、可中断、可重放的明确环节纳入协议循环。
@@ -181,13 +193,14 @@ flowchart TD
 
 ---
 
-## 三、八大场景能力横向对比矩阵
+## 三、场景能力横向对比矩阵
 
 | 场景 ID | 演示名称 | 核心能力层级 | 主要 UI 组件 | Surface 数量 | 交互类型 | 关键架构特征 |
 | :--- | :--- | :---: | :--- | :---: | :---: | :--- |
 | **`streaming-text`** | 流式文本 | **L1** | Markdown | 0 | 单向流式 | 文本增量缓冲，与 A2UI 共用事件序列 |
 | **`server-health`** | 服务器健康 | **L2** | `LabToolCall`, `LabProgress`, `Card` | 1 $\to$ 2 | 事后动作 | 工具可观测性、数据模型单向绑定（`/summary`） |
 | **`tool-error`** | 工具失败 | **L2** | `LabAlert` | 1 | 异常处理 | 显式失败事件映射，系统不崩溃、可审计重放 |
+| **`stream-error`** | 部分输出失败 | **L2** | Markdown, `LabAlert` | 1 | 异常处理 | 错误前刷新文本缓冲，保存不完整输出与 failed 状态 |
 | **`image-card`** | 图文卡片 | **L3** | Markdown, `LabImageCard` | 1 | 静态富媒体 | 结构化领域事件、邻接表组件树动态扩展 |
 | **`image-list`** | 资源列表 | **L3** | Markdown, `LabImageCard` (多实例) | 1 | 渐进式流式 | 搜索结果逐一到达渲染，`layout: "row"` 组件复用 |
 | **`deployment-approval`**| 部署审批 | **L4** | `LabApproval`, `Text` | **2** | **双向中断/恢复** | HITL 挂起唤醒、意图路由白名单、卡片只读锁定 |
@@ -209,7 +222,7 @@ flowchart TD
 │ 服务端 Action Router (internal/action/action.go)             │
 │  1. 状态校验: Run 必须为 waiting_input (防止越权触发)         │
 │  2. 场景白名单: 动作名/组件名与场景是否匹配                    │
-│  3. 数据完整性: 长度截断、邮箱格式、枚举值校验                  │
+│  3. 数据完整性: 长度限制、邮箱格式、枚举值校验                  │
 │  4. 幂等防护: 相同动作幂等返回；冲突动作显式拒绝                │
 └─────────────────────────────────────────────────────────────┘
            ↓
@@ -228,3 +241,11 @@ flowchart TD
 **Trace turn** 可切换轮次，查看上下文构建、实际 Mock 请求、响应、工具、Action 与 A2UI 消息。历史轮组件只读；等待输入的表单和审批完成前不可创建下一轮。重放仅还原已保存事件，不发起模型请求。本版本明确显示 Mock 和未发生外部调用。
 
 详见 [混合会话与 Trace 决策](decisions/0009-hybrid-conversations-and-traces.md)。
+
+## 六、P0 交互与异常练习
+
+展开 Learning lab，通过按钮选中该场景已保存的事件，在 Inspector 查看具体参数。
+输出期间 Stop run 取消执行并保存部分文本；Disconnect SSE 仅关闭交付，
+Reconnect SSE 从连续前缀补齐。已确认的最新轮次可 Retry last Action，
+观察相同信封重试后事件序号不变。回放与历史轮次禁用这些练习控件。
+完整步骤、服务端校验与代码移植说明见 [教学指南](learning_zh.md)。

@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { api, required } from '@/lib/api'
-import { mergeEvents, type LabEvent } from '@/lib/events'
+import { mergeEvents, orderedPrefix, type LabEvent } from '@/lib/events'
 import { object } from '@/lib/a2ui'
 export async function fetchEvents(id: string, signal?: AbortSignal): Promise<LabEvent[]> {
   const events: LabEvent[] = []
@@ -20,7 +20,7 @@ export async function fetchEvents(id: string, signal?: AbortSignal): Promise<Lab
     after = items[items.length - 1].seq
   }
 }
-export function useEvents(id: string) {
+export function useEvents(id: string, connected = true) {
   const client = useQueryClient(),
     [connection, setConnection] = useState('Connecting')
   const query = useQuery({
@@ -31,7 +31,12 @@ export function useEvents(id: string) {
     },
   })
   useEffect(() => {
-    const source = new EventSource(`/api/runs/${encodeURIComponent(id)}/stream`)
+    if (!connected) return
+    // A new EventSource has no Last-Event-ID. Resume from the contiguous cached
+    // prefix; using the largest seq could permanently skip a missing event.
+    const after =
+      orderedPrefix(client.getQueryData<LabEvent[]>(['events', id]) ?? []).at(-1)?.seq ?? 0
+    const source = new EventSource(`/api/runs/${encodeURIComponent(id)}/stream?after=${after}`)
     source.onopen = () => setConnection('Live')
     source.onerror = () => setConnection('Reconnecting · stored events are safe')
     const listener = (incoming: MessageEvent) => {
@@ -60,6 +65,6 @@ export function useEvents(id: string) {
     }
     source.addEventListener('lab', listener)
     return () => source.close()
-  }, [id, client])
-  return { ...query, connection }
+  }, [id, client, connected])
+  return { ...query, connection: connected ? connection : 'Disconnected · Agent keeps running' }
 }

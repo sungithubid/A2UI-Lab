@@ -14,3 +14,10 @@ Use a short numbered record for consequential tradeoffs: context, decision, cons
 - [0006 — sqlc query generation without runtime dependencies](0006-sqlc-query-generation.md)
 
 New records should reflect the actual implementation and explain migration implications.
+
+- [0007 — Local event-driven lab](0007-local-event-lab.md)
+- [0008 — Persisted human interaction](0008-persisted-human-interaction.md)
+- [0009 — Hybrid conversations and traces](0009-hybrid-conversations-and-traces.md)
+- [0010 — Chat request preview](0010-chat-request-preview.md)
+- [0011 — Persisted plan decisions](0011-persisted-plan-decisions.md)
+- [0012 — Interaction teaching baseline](0012-interaction-teaching-baseline.md)

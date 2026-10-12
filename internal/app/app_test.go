@@ -219,6 +219,38 @@ func TestSSEFlushAndResume(t *testing.T) {
 	request(t, a, "GET", "/api/runs/"+run.ID+"/stream?after=-1", nil, 400)
 }
 
+func TestRunStopHTTPContract(t *testing.T) {
+	a := testApp(t)
+	created := request(t, a, "POST", "/api/runs", map[string]any{"prompt": "Stop this stream", "scenarioId": "streaming-text"}, 201)
+	var run lab.Run
+	if err := json.Unmarshal(created.Body.Bytes(), &run); err != nil {
+		t.Fatal(err)
+	}
+	stopped := request(t, a, "POST", "/api/runs/"+run.ID+"/stop", nil, 200)
+	if err := json.Unmarshal(stopped.Body.Bytes(), &run); err != nil {
+		t.Fatal(err)
+	}
+	if run.Status != "interrupted" || run.FinishedAt == "" {
+		t.Fatal("stop did not return saved terminal state", run)
+	}
+	before := request(t, a, "GET", "/api/runs/"+run.ID+"/events", nil, 200).Body.String()
+	request(t, a, "POST", "/api/runs/"+run.ID+"/stop", nil, 200)
+	after := request(t, a, "GET", "/api/runs/"+run.ID+"/events", nil, 200).Body.String()
+	if before != after {
+		t.Fatal("HTTP retry appended events")
+	}
+	request(t, a, "POST", "/api/runs/missing/stop", nil, 404)
+	repo := lab.NewRepository(a.DB)
+	inactive, err := repo.Create(context.Background(), "Pending input", "support-form", "v0.9.1")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := repo.Append(context.Background(), inactive.ID, []event.Message{event.New("run.waiting_input", map[string]any{})}, "waiting_input"); err != nil {
+		t.Fatal(err)
+	}
+	request(t, a, "POST", "/api/runs/"+inactive.ID+"/stop", nil, 409)
+}
+
 func TestMaintenanceOpenDoesNotInterruptRuns(t *testing.T) {
 	a := testApp(t)
 	repo := lab.NewRepository(a.DB)

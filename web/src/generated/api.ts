@@ -85,6 +85,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/runs/{id}/stop": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Stop execution and preserve partial output */
+        post: operations["stop-run"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/scenarios": {
         parameters: {
             query?: never;
@@ -116,7 +133,7 @@ export interface components {
             parentRunId?: string;
             prompt: string;
             /** @enum {string} */
-            scenarioId: "server-health" | "streaming-text" | "tool-error" | "image-card" | "image-list" | "support-form" | "deployment-approval" | "plan-decision";
+            scenarioId: "server-health" | "streaming-text" | "tool-error" | "stream-error" | "image-card" | "image-list" | "support-form" | "deployment-approval" | "plan-decision";
         };
         DeleteAllInputBody: {
             /**
@@ -520,6 +537,37 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["EventsOutputBody"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ErrorModel"];
+                };
+            };
+        };
+    };
+    "stop-run": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Run"];
                 };
             };
             /** @description Error */
