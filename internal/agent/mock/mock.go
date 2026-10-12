@@ -67,20 +67,24 @@ func (a Agent) Run(ctx context.Context, req agent.Request) (<-chan event.Message
 		intro := event.New("model.text_delta", event.TextDelta{MessageID: "answer", Text: text.String()})
 		messages = append(messages[:1], append([]event.Message{intro}, messages[1:]...)...)
 	}
+	if req.DeepThinking {
+		thinking := reasoning(req.ScenarioID)
+		messages = append(messages[:1], append(thinking, messages[1:]...)...)
+	}
 	out := make(chan event.Message)
 	go func() {
 		defer close(out)
 		for _, m := range messages {
 			parts := []event.Message{m}
 			delay := a.Delay
-			if m.Kind == "model.text_delta" {
+			if m.Kind == "model.text_delta" || m.Kind == "model.reasoning_delta" {
 				text, _ := m.Payload["text"].(string)
 				id, _ := m.Payload["messageId"].(string)
 				runes := []rune(text)
 				parts = nil
 				for len(runes) > 0 {
 					n := min(12, len(runes))
-					parts = append(parts, event.New("model.text_delta", event.TextDelta{MessageID: id, Text: string(runes[:n])}))
+					parts = append(parts, event.New(m.Kind, event.TextDelta{MessageID: id, Text: string(runes[:n])}))
 					runes = runes[n:]
 				}
 				delay = min(delay, 25*time.Millisecond)

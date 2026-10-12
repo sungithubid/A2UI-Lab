@@ -251,6 +251,26 @@ func TestRunStopHTTPContract(t *testing.T) {
 	request(t, a, "POST", "/api/runs/"+inactive.ID+"/stop", nil, 409)
 }
 
+func TestDeepThinkingRequestContract(t *testing.T) {
+	a := testApp(t)
+	request(t, a, "POST", "/api/runs", map[string]any{"prompt": "Invalid option", "scenarioId": "streaming-text", "deepThinking": "true"}, 422)
+	w := request(t, a, "POST", "/api/runs", map[string]any{"prompt": "Think then answer", "scenarioId": "streaming-text", "deepThinking": true}, 201)
+	var run lab.Run
+	if err := json.Unmarshal(w.Body.Bytes(), &run); err != nil {
+		t.Fatal(err)
+	}
+	saved := request(t, a, "GET", "/api/runs/"+run.ID+"/events", nil, 200)
+	var data struct {
+		Items []event.Event `json:"items"`
+	}
+	if err := json.Unmarshal(saved.Body.Bytes(), &data); err != nil {
+		t.Fatal(err)
+	}
+	if len(data.Items) == 0 || data.Items[0].Payload["deepThinking"] != true {
+		t.Fatal("HTTP option not persisted", data)
+	}
+}
+
 func TestMaintenanceOpenDoesNotInterruptRuns(t *testing.T) {
 	a := testApp(t)
 	repo := lab.NewRepository(a.DB)

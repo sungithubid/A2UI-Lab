@@ -122,7 +122,7 @@ func (p *Presenter) Start() Message {
 }
 func (p *Presenter) Render(m presentation.Model) []Message {
 	// Narrative deltas use the Markdown channel. Text inside cards still uses A2UI.
-	if m.Kind == "text-delta" {
+	if m.Kind == "text-delta" || m.Kind == "thinking-start" || m.Kind == "thinking-delta" || m.Kind == "thinking-end" {
 		return nil
 	}
 	if !p.seen[m.ID] {

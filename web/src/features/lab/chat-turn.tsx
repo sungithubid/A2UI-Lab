@@ -1,9 +1,10 @@
-import { memo, useMemo } from 'react'
+import { memo, useMemo, useState } from 'react'
 import { Bot, UserRound } from 'lucide-react'
 import type { LabEvent, Action } from '@/lib/events'
 import { chatView } from '@/lib/chat'
 import { Renderer } from '@/features/renderer/renderer'
 import { Markdown } from './markdown'
+import { Thinking } from './thinking'
 
 export const ChatTurn = memo(function ChatTurn({
   events,
@@ -19,6 +20,8 @@ export const ChatTurn = memo(function ChatTurn({
   onAction: (action: Action) => void
 }) {
   const view = useMemo(() => chatView(events), [events])
+  const [showThinking, setShowThinking] = useState(true)
+  const hasThinking = view.blocks.some((b) => b.kind === 'thinking')
   return (
     <section className="chat-turn" aria-label={`Turn ${turnIndex}`} data-run-id={runId}>
       <div className="turn-divider">TURN {turnIndex.toString().padStart(2, '0')}</div>
@@ -28,7 +31,9 @@ export const ChatTurn = memo(function ChatTurn({
             <UserRound size={15} />
           </div>
           <article className="chat-bubble user-bubble">
-            <small>You</small>
+            <small>
+              You {view.deepThinking && <span className="turn-mode">Deep thinking</span>}
+            </small>
             <p>{view.user}</p>
           </article>
         </div>
@@ -42,8 +47,21 @@ export const ChatTurn = memo(function ChatTurn({
             <small>
               Agent <span>MOCK</span>
             </small>
+            {hasThinking && (
+              <label className="thinking-visibility">
+                <input
+                  type="checkbox"
+                  checked={showThinking}
+                  onChange={(e) => setShowThinking(e.target.checked)}
+                  aria-label={`Show thinking for turn ${turnIndex}`}
+                />
+                Show thinking
+              </label>
+            )}
             {view.blocks.map((b) =>
-              b.kind === 'markdown' ? (
+              b.kind === 'thinking' ? (
+                showThinking && <Thinking key={b.key} block={b} />
+              ) : b.kind === 'markdown' ? (
                 <Markdown key={b.key} text={b.text} />
               ) : (
                 view.state.surfaces[b.surfaceId] && (
@@ -60,7 +78,13 @@ export const ChatTurn = memo(function ChatTurn({
                 )
               ),
             )}
-            {view.status === 'run.started' && <span className="streaming-label">Streaming…</span>}
+            {view.status === 'run.started' && (
+              <span className="streaming-label">
+                {hasThinking && !showThinking
+                  ? 'Thinking hidden · Agent is responding…'
+                  : 'Streaming…'}
+              </span>
+            )}
           </article>
         </div>
       )}

@@ -7,6 +7,10 @@ model. All nine scenarios use local fixtures, the same event pipeline and the sa
 persisted history. A scenario selects fixture behavior; its prompt is not interpreted
 by a real model. Request-preview JSON is a projection, not a provider HTTP request.
 
+All scenarios also support the optional per-turn Deep thinking switch. Its labelled
+summary events are separate from the answer and excluded from later context.
+See [thinking output](thinking.md) for request/event examples and adapter boundaries.
+
 ![Learning lab: saved event checkpoints and an identical Action retry](images/learning-lab.png)
 
 ## Start with one complete interaction

@@ -130,6 +130,7 @@ export interface components {
              */
             readonly $schema?: string;
             conversationId?: string;
+            deepThinking?: boolean;
             parentRunId?: string;
             prompt: string;
             /** @enum {string} */

@@ -129,7 +129,17 @@ export function LearningPanel({
           <>
             <p>{guide.output}</p>
             <div className="learning-events" aria-label="Scenario event checkpoints">
-              {['model.request', ...guide.events].map((kind) => {
+              {[
+                'model.request',
+                ...(events.some((e) => e.kind === 'model.reasoning_started')
+                  ? [
+                      'model.reasoning_started',
+                      'model.reasoning_delta',
+                      'model.reasoning_completed',
+                    ]
+                  : []),
+                ...guide.events,
+              ].map((kind) => {
                 const event = events.find((e) => e.kind === kind)
                 return (
                   <Button

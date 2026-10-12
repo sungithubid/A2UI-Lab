@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { GitBranch } from 'lucide-react'
 import { chatRequestPreview } from '@/lib/chat-request'
 import { relativeTime, type LabEvent, type Run } from '@/lib/events'
+import { reasoningView } from '@/lib/reasoning'
 
 type Span = {
   id: string
@@ -30,6 +31,7 @@ export function TracePanel({
     events.find((e) => e.kind === 'model.response') ??
     events.find((e) => e.kind === 'run.interrupted' || e.kind === 'run.failed')
   const spans: Span[] = []
+  const thinking = new Map(reasoningView(events).blocks.map((b) => [b.key, b]))
   if (first)
     spans.push({
       id: 'run',
@@ -66,6 +68,40 @@ export function TracePanel({
         input: e.payload,
         output: modelEnd ? { event: modelEnd.kind, ...modelEnd.payload } : undefined,
       })
+    if (e.kind === 'model.reasoning_started') {
+      const phase = thinking.get(e.seq)
+      if (!phase) continue
+      const done = events.find(
+        (v) =>
+          v.seq > e.seq &&
+          v.kind === 'model.reasoning_completed' &&
+          v.payload.messageId === e.payload.messageId,
+      )
+      const terminal = events.find(
+        (v) =>
+          v.seq > e.seq &&
+          (v.kind === 'model.response' ||
+            v.kind === 'run.interrupted' ||
+            v.kind === 'run.failed' ||
+            v.kind === 'error.occurred'),
+      )
+      const end = done ?? terminal
+      spans.push({
+        id: `thinking-${e.seq}`,
+        name:
+          e.payload.source === 'mock_summary'
+            ? 'Thinking · Mock summary'
+            : 'Thinking · Model summary',
+        depth: 2,
+        start: e,
+        end,
+        input: e.payload,
+        output: {
+          status: phase.status,
+          text: phase.text,
+        },
+      })
+    }
     if (e.kind === 'tool.started') {
       const end =
         events.find(

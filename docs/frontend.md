@@ -20,3 +20,10 @@ Last-Event-ID behavior. Stop run uses the generated lifecycle endpoint. Replay a
 historical turns disable these controls. Drafts/connection state/exercise receipts
 are local UI state; conversation text, surfaces and outcomes remain event-derived.
 See [the learning guide](learning.md).
+
+Thinking uses lib/reasoning.ts, a pure reducer invoked on the contiguous prefix by
+chatView and Trace. It anchors phases by start seq, validates sources/lifecycle and
+keeps reasoning separate from answer Markdown. Thinking panels auto-collapse on
+completion, preserve manual choices, and use safe Markdown with recorded timing.
+Visibility controls are local; per-request generation switches submit deepThinking.
+Interrupted/failed/incomplete summaries remain visible by default. See thinking.md.

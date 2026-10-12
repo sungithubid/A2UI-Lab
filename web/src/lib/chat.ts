@@ -1,19 +1,26 @@
 import { describe, replay } from './a2ui'
 import { orderedPrefix, type LabEvent } from './events'
+import { reasoningView, type ThinkingBlock } from './reasoning'
 
 export type ChatBlock =
   | { kind: 'markdown'; key: number; text: string; messageId: string }
   | { kind: 'surface'; key: number; surfaceId: string }
+  | ThinkingBlock
 
-// Both channels reduce the same persisted prefix. A surface is anchored at its
+// All display channels reduce the same persisted prefix. A surface is anchored at its
 // first component message; later updates keep that position and component identity.
 export function chatView(input: LabEvent[]) {
   const events = orderedPrefix(input)
   const state = replay(events)
+  const thinking = reasoningView(events)
+  state.issues.push(...thinking.issues)
+  const thinkingAt = new Map(thinking.blocks.map((b) => [b.key, b]))
   const hybrid = events.some((e) => e.kind === 'run.started' && e.payload.rendering === 'hybrid')
   const blocks: ChatBlock[] = []
   const surfaces = new Set<string>()
   for (const e of events) {
+    const thought = thinkingAt.get(e.seq)
+    if (thought) blocks.push(thought)
     if (hybrid && e.kind === 'model.text_delta' && typeof e.payload.text === 'string') {
       const messageId = String(e.payload.messageId ?? 'answer')
       const last = blocks.at(-1)
@@ -40,5 +47,6 @@ export function chatView(input: LabEvent[]) {
     blocks,
     user: events.find((e) => e.kind === 'user.message')?.payload.text,
     status: events.filter((e) => e.kind.startsWith('run.')).at(-1)?.kind,
+    deepThinking: events.find((e) => e.kind === 'run.started')?.payload.deepThinking === true,
   }
 }

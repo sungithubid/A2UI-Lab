@@ -20,6 +20,12 @@ type Presenter struct{}
 func (p *Presenter) Present(e event.Message) []Model {
 	str := func(k string) string { v, _ := e.Payload[k].(string); return v }
 	switch e.Kind {
+	case "model.reasoning_started":
+		return []Model{{Kind: "thinking-start", ID: str("messageId"), Data: e.Payload}}
+	case "model.reasoning_delta":
+		return []Model{{Kind: "thinking-delta", ID: str("messageId"), Text: str("text")}}
+	case "model.reasoning_completed":
+		return []Model{{Kind: "thinking-end", ID: str("messageId"), Data: e.Payload}}
 	case "model.text_delta":
 		return []Model{{Kind: "text-delta", ID: str("messageId"), Text: str("text")}}
 	case "tool.started":

@@ -106,3 +106,17 @@ last contiguous cached seq; automatic reconnect uses Last-Event-ID. Disconnectio
 does not cancel Agent execution. The Action retry exercise sends the exact saved
 envelope and relies on the existing atomic single-interaction contract. Replay and
 historical inspection disable exercise controls. See ADR 0012 and the learning guide.
+
+## Optional thinking output
+
+Create.deepThinking is an optional per-turn boolean, copied into agent.Request and
+saved in model.request/run.started without a schema change. Mock emits labelled
+model.reasoning_started/delta/completed phases before its narrative when enabled.
+Thinking shares the event log and buffering policy but never becomes model.text_delta
+or an A2UI component. The buffer flushes on channel/ID changes and termination.
+
+The pure reasoning reducer validates phases, derives time/status from recorded events,
+and supplies both chat and Trace. Reasoning summaries are excluded from later messages
+and UI facts. Per-turn hide/show and manual expansion are local preferences; generation
+flags and content are persisted. provider_summary is reserved for actual displayable
+adapter output, not private model state. See ADR 0013 and thinking.md.

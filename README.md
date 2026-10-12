@@ -10,6 +10,7 @@ A local engineering playground for streaming Agent UIs: run deterministic scenar
 
 - **Zero-Config & Standalone**: Pure Go single binary embedding React assets and goose SQLite migrations. Runs instantly without external API keys, accounts, or cloud dependencies.
 - **Hybrid Multi-Turn Chat & Traces**: User bubbles on the right, Agent replies on the left, with streaming Markdown and interleaved A2UI surfaces. Backend-owned history and local traces expose context construction, actual Mock requests, tools, and actions.
+- **Optional Deep Thinking**: Per-turn switches enable a streamed Mock planning summary, with local hide/show and collapsible panels, recorded timing, separate Trace spans and replay support. Thinking summaries stay out of subsequent chat context.
 - **Deterministic Scenario Ladder**: 9 built-in scenarios covering streaming text, partial-stream failure, tool calling, rich media, and human-in-the-loop approvals.
 - **Interaction Teaching Baseline**: Expand Learning lab to inspect scenario event checkpoints, disconnect/reconnect SSE, or retry an exact saved Action. Stop run preserves partial output.
 - **End-to-End Protocol Observability**: Protocol Inspector and Timeline provide real-time inspection of raw JSON envelopes, component hierarchies, data model bindings, and sequential events.
@@ -68,6 +69,17 @@ continues; **Reconnect SSE** catches up from the saved contiguous cursor.
 **Retry last Action** resubmits the exact recorded envelope and demonstrates an
 unchanged event sequence. **Stop run** cancels active execution and preserves received
 text. Replay and earlier-turn inspection disable these mutation/exercise controls.
+
+## Optional Thinking Output
+
+Turn on **Deep thinking** beside New run or in the follow-up composer. Each request
+records its own option. Thinking streams in a separate panel before the answer;
+completed summaries auto-collapse unless manually overridden. **Show thinking**
+hides/shows a turn's summaries without deleting events. Stopped/failed summaries keep
+their partial content, and Trace records the summary lifecycle. This slice uses fixed
+Mock summaries; provider_summary is an adapter boundary for future real-model output.
+No private model reasoning or provider token usage is claimed. See the
+[thinking contract and integration guide](docs/thinking.md).
 
 ## Built-in Scenarios
 
@@ -162,6 +174,7 @@ make verify   # Full gate check
 - [Architecture Guide](docs/architecture.md)
 - [Scenario Evolution Ladder](docs/scenarios.md)
 - [P0 Interaction Teaching Guide](docs/learning.md)
+- [Thinking Output and Adapter Contract](docs/thinking.md)
 - [Protocol Subset](docs/protocol.md)
 - [Local Lab Decision Record (ADR 0007)](docs/decisions/0007-local-event-lab.md)
 - [Persisted Human Interaction (ADR 0008)](docs/decisions/0008-persisted-human-interaction.md)
@@ -169,5 +182,6 @@ make verify   # Full gate check
 - [Chat Completions Request Preview (ADR 0010)](docs/decisions/0010-chat-request-preview.md)
 - [Persisted Plan Decisions (ADR 0011)](docs/decisions/0011-persisted-plan-decisions.md)
 - [Interaction Teaching Baseline (ADR 0012)](docs/decisions/0012-interaction-teaching-baseline.md)
+- [Optional Thinking Summaries (ADR 0013)](docs/decisions/0013-optional-thinking-summaries.md)
 - [Development Workflow](docs/development.md)
 - [Verification Baseline](docs/verification.md)

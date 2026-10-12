@@ -67,3 +67,11 @@ Browser exercises disconnect delivery while the real embedded backend completes,
 catch up through a nonzero cursor, retry an identical saved Action without new events,
 reject changed choices, inspect teaching checkpoints, and preserve partial output
 through reload/replay. Exercise controls are disabled in replay. See learning.md.
+
+Thinking coverage exercises enabled/disabled generation across all nine scenarios,
+the HTTP boolean contract, separate character accounting, no thinking-created A2UI,
+and context exclusion. Cancellation preserves the reasoning buffer including Unicode.
+Reducer tests cover phase ordering, recorded durations, duplicate/gapped delivery,
+invalid source/payload/lifecycle and terminal states. Component/browser tests verify
+automatic/manual expansion, keyboard input, visibility without event changes, per-turn
+options, next-turn context, stop during thinking, reload/replay and mobile layout.

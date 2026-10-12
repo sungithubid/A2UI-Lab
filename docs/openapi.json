@@ -17,6 +17,9 @@
             "maxLength": 100,
             "type": "string"
           },
+          "deepThinking": {
+            "type": "boolean"
+          },
           "parentRunId": {
             "maxLength": 100,
             "type": "string"

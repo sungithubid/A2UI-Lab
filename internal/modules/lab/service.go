@@ -43,6 +43,7 @@ type Create struct {
 	ConversationID string `json:"conversationId,omitempty" maxLength:"100"`
 	ParentRunID    string `json:"parentRunId,omitempty" maxLength:"100"`
 	Prompt         string `json:"prompt" minLength:"1" maxLength:"2000"`
+	DeepThinking   bool   `json:"deepThinking,omitempty"`
 	ScenarioID     string `json:"scenarioId" enum:"server-health,streaming-text,tool-error,stream-error,image-card,image-list,support-form,deployment-approval,plan-decision"`
 }
 type worker struct {
@@ -114,7 +115,7 @@ func (s *Service) Create(ctx context.Context, in Create) (Run, error) {
 	if err != nil {
 		return r, err
 	}
-	err = s.repo.Append(ctx, r.ID, []event.Message{event.New("run.started", map[string]any{"scenarioId": in.ScenarioID, "rendering": "hybrid", "conversationId": r.ConversationID, "turnIndex": r.TurnIndex}), event.New("user.message", map[string]any{"text": in.Prompt}), event.New("trace.context", map[string]any{"context": contextInfo, "durationMs": contextDuration})}, "")
+	err = s.repo.Append(ctx, r.ID, []event.Message{event.New("run.started", map[string]any{"scenarioId": in.ScenarioID, "rendering": "hybrid", "conversationId": r.ConversationID, "turnIndex": r.TurnIndex, "deepThinking": in.DeepThinking}), event.New("user.message", map[string]any{"text": in.Prompt}), event.New("trace.context", map[string]any{"context": contextInfo, "durationMs": contextDuration})}, "")
 	if err != nil {
 		return r, err
 	}
@@ -154,13 +155,14 @@ func (s *Service) execute(parent context.Context, r Run, req agent.Request) {
 	var protocol a2ui.Presenter
 	surfaceStarted := false
 	outputChars := 0
-	pending, pendingID := "", ""
-	firstText := true
+	reasoningChars := 0
+	pending, pendingID, pendingKind := "", "", ""
+	seenChunk := map[string]bool{}
 	appendMessage := func(writeCtx context.Context, m event.Message) error {
 		batch := []event.Message{m}
 		for _, view := range semantic.Present(m) {
 			batch = append(batch, event.New("presentation.event", view))
-			if view.Kind == "text-delta" {
+			if view.Kind == "text-delta" || strings.HasPrefix(view.Kind, "thinking-") {
 				continue
 			}
 			if !surfaceStarted {
@@ -179,7 +181,7 @@ func (s *Service) execute(parent context.Context, r Run, req agent.Request) {
 		}
 		text := pending
 		pending = ""
-		return appendMessage(writeCtx, event.New("model.text_delta", event.TextDelta{MessageID: pendingID, Text: text}))
+		return appendMessage(writeCtx, event.New(pendingKind, event.TextDelta{MessageID: pendingID, Text: text}))
 	}
 	defer func() {
 		if ctx.Err() != nil {
@@ -191,7 +193,7 @@ func (s *Service) execute(parent context.Context, r Run, req agent.Request) {
 			status = "failed"
 			s.log.Error("flush text", "error", err)
 		}
-		finish := []event.Message{event.New("model.response", map[string]any{"adapter": "mock", "externalCall": false, "status": status, "outputCharacters": outputChars, "durationMs": time.Since(startedAt).Milliseconds()}), event.New("run."+status, map[string]any{})}
+		finish := []event.Message{event.New("model.response", map[string]any{"adapter": "mock", "externalCall": false, "status": status, "outputCharacters": outputChars, "reasoningCharacters": reasoningChars, "durationMs": time.Since(startedAt).Milliseconds()}), event.New("run."+status, map[string]any{})}
 		if err := s.repo.Append(finalCtx, r.ID, finish, status); err != nil {
 			s.log.Error("finish run", "run_id", r.ID, "error", err)
 		}
@@ -223,20 +225,26 @@ func (s *Service) execute(parent context.Context, r Run, req agent.Request) {
 			if !ok {
 				return
 			}
-			if m.Kind == "model.text_delta" {
+			if m.Kind == "model.text_delta" || m.Kind == "model.reasoning_delta" {
 				id, _ := m.Payload["messageId"].(string)
 				text, _ := m.Payload["text"].(string)
-				if pendingID != id {
+				if pendingID != id || pendingKind != m.Kind {
 					if err = flush(ctx); err != nil {
 						status = "failed"
 						return
 					}
 				}
 				pendingID = id
+				pendingKind = m.Kind
 				pending += text
-				outputChars += utf8.RuneCountInString(text)
-				if firstText || utf8.RuneCountInString(pending) >= 128 {
-					firstText = false
+				if m.Kind == "model.reasoning_delta" {
+					reasoningChars += utf8.RuneCountInString(text)
+				} else {
+					outputChars += utf8.RuneCountInString(text)
+				}
+				channel := m.Kind + ":" + id
+				if !seenChunk[channel] || utf8.RuneCountInString(pending) >= 128 {
+					seenChunk[channel] = true
 					if err = flush(ctx); err != nil {
 						status = "failed"
 						return

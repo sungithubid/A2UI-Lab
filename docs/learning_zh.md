@@ -6,6 +6,9 @@
 Action 和下一轮上下文。9 个场景共用同一链路，全部是本地 Mock：
 场景 ID 决定固定行为，prompt 不经过真实模型推理，messages 预览也不是外部 HTTP 请求。
 
+所有场景另支持每轮 Deep thinking 开关；带来源标记的思考摘要与正文分开保存，
+不进入后续上下文。请求与事件示例见 [思考输出指南](thinking_zh.md)。
+
 ![Learning lab：事件检查点与相同 Action 重试](images/learning-lab.png)
 
 ## 从一个完整闭环开始

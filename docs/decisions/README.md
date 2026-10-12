@@ -21,3 +21,4 @@ New records should reflect the actual implementation and explain migration impli
 - [0010 — Chat request preview](0010-chat-request-preview.md)
 - [0011 — Persisted plan decisions](0011-persisted-plan-decisions.md)
 - [0012 — Interaction teaching baseline](0012-interaction-teaching-baseline.md)
+- [0013 — Optional thinking summaries](0013-optional-thinking-summaries.md)

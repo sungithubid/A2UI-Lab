@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState, useRef } from 'react'
 import { useMutation, useQueryClient, useQuery, useQueries } from '@tanstack/react-query'
 import { Play, RotateCcw, StepForward, Radio } from 'lucide-react'
 import { api, required } from '@/lib/api'
-import { replay } from '@/lib/a2ui'
+import { chatView } from '@/lib/chat'
 import type { Action } from '@/lib/events'
 import { Button } from '@/components/ui/button'
 import { ChatTurn } from './chat-turn'
@@ -13,7 +13,18 @@ import { ProtocolPanel } from '@/features/inspector/protocol-panel'
 import { fetchEvents, useEvents } from './use-events'
 import { TimelineRow } from '@/features/timeline/timeline-row'
 import { LearningPanel } from './learning-panel'
-export function Experiment({ id, onRun }: { id: string; onRun: (id: string) => void }) {
+import { DeepThinkingToggle } from './deep-thinking-toggle'
+export function Experiment({
+  id,
+  onRun,
+  deepThinking,
+  onDeepThinking,
+}: {
+  id: string
+  onRun: (id: string) => void
+  deepThinking: boolean
+  onDeepThinking: (enabled: boolean) => void
+}) {
   const client = useQueryClient(),
     [connected, setConnected] = useState(true),
     query = useEvents(id, connected),
@@ -23,7 +34,10 @@ export function Experiment({ id, onRun }: { id: string; onRun: (id: string) => v
     [selection, setSelection] = useState<number | null>(null),
     [category, setCategory] = useState('all')
   const visible = orderedPrefix(cursor === null ? events : events.slice(0, cursor))
-  const state = useMemo(() => replay(events, cursor ?? events.length), [events, cursor])
+  const state = useMemo(
+    () => chatView(cursor === null ? events : events.slice(0, cursor)).state,
+    [events, cursor],
+  )
   const selected =
     visible.find((e) => e.seq === selection) ??
     visible.filter((e) => e.kind === 'a2ui.message').at(-1)
@@ -65,6 +79,7 @@ export function Experiment({ id, onRun }: { id: string; onRun: (id: string) => v
               scenarioId: nextScenario,
               conversationId: run!.conversationId,
               parentRunId: id,
+              deepThinking,
             },
           })
         ).data,
@@ -301,6 +316,12 @@ export function Experiment({ id, onRun }: { id: string; onRun: (id: string) => v
                       ))}
                     </select>
                   </label>
+                  <DeepThinkingToggle
+                    enabled={deepThinking}
+                    onChange={onDeepThinking}
+                    label="Deep thinking for next turn"
+                    disabled={!canContinue || action.isPending}
+                  />
                   <Button
                     type="submit"
                     disabled={!canContinue || action.isPending || !draft.trim()}

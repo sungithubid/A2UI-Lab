@@ -10,6 +10,7 @@
 
 - **零依赖与开箱即用**：纯 Go 单二进制文件，内嵌 React 前端静态资产与 Goose 数据库迁移，本地无外部依赖即可完整运行。
 - **混合多轮聊天与 Trace**：右侧用户气泡、左侧 Agent 输出；Markdown 增量文本与 A2UI 组件交错展示。后端保存会话历史，Trace 展示上下文构建、实际 Mock 请求、工具与交互过程。
+- **可开关的深度思考**：每轮可启用流式 Mock 规划摘要，支持显示/隐藏、展开/折叠、记录耗时、独立 Trace 和回放；思考摘要不进入后续聊天上下文。
 - **渐进式场景阶梯**：内置 9 个场景，涵盖流式文本、部分输出失败、工具调用观测、富媒体展示以及人机交互协同（HITL）。
 - **交互教学基线**：Learning lab 提供事件检查点、SSE 断开/重连与相同 Action 重试练习；Stop run 停止执行并保存部分输出。
 - **端到端协议可观测性**：集成 Protocol Inspector 和 Timeline，实时查看原始协议 JSON、序号、时间戳、组件树结构与数据模型状态。
@@ -67,6 +68,16 @@ Agent 上下文、渲染及 Action 处理，并对照代码入口完成异常练
 **Retry last Action** 重发原始已保存信封，用不变的事件序号观察幂等效果。
 **Stop run** 取消正在运行的任务并保存已收到的文本。
 历史轮次和回放中的操作/练习控件只读。
+
+## 可开关的思考输出
+
+在 New run 旁或追问输入区打开 **Deep thinking**，每次请求独立保存该选项。
+思考摘要在正文前使用独立面板流式展示，完成后自动折叠，手动展开/折叠优先。
+每轮 **Show thinking** 控制显示与隐藏，不删除事件。停止/失败保留部分摘要；
+Trace 记录独立 Thinking 阶段，刷新及回放恢复原有输出。
+当前使用固定 Mock 摘要，provider_summary 为后续模型适配入口，
+不宣称获取了模型私有思维链或真实 token 用量。
+详见 [思考输出与适配指南](docs/thinking_zh.md)。
 
 ## 内置场景
 
@@ -162,6 +173,7 @@ make verify   # 全量门禁校验
 - [系统架构文档 (Architecture)](docs/architecture.md)
 - [场景演进阶梯 (Scenarios & Evolution Ladder)](docs/scenarios.md)
 - [P0 交互教学指南](docs/learning_zh.md)
+- [思考输出与模型适配契约](docs/thinking_zh.md)
 - [协议子集定义 (Protocol Subset)](docs/protocol.md)
 - [本地实验室架构决策 (ADR 0007)](docs/decisions/0007-local-event-lab.md)
 - [持久化交互架构决策 (ADR 0008)](docs/decisions/0008-persisted-human-interaction.md)
@@ -169,5 +181,6 @@ make verify   # 全量门禁校验
 - [Chat Completions 请求预览决策 (ADR 0010)](docs/decisions/0010-chat-request-preview.md)
 - [方案决策交互 (ADR 0011)](docs/decisions/0011-persisted-plan-decisions.md)
 - [交互教学基线 (ADR 0012)](docs/decisions/0012-interaction-teaching-baseline.md)
+- [可选思考摘要 (ADR 0013)](docs/decisions/0013-optional-thinking-summaries.md)
 - [开发指南 (Development)](docs/development.md)
 - [验证规范 (Verification)](docs/verification.md)

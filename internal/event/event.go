@@ -32,6 +32,16 @@ type TextDelta struct {
 	MessageID string `json:"messageId"`
 	Text      string `json:"text"`
 }
+
+// Reasoning events carry displayable summaries, not private model internals.
+// MessageID scopes a phase within a run; deltas reuse TextDelta's shape.
+type ReasoningStarted struct {
+	MessageID string `json:"messageId"`
+	Source    string `json:"source"`
+}
+type ReasoningCompleted struct {
+	MessageID string `json:"messageId"`
+}
 type ToolStarted struct {
 	CallID string         `json:"callId"`
 	Name   string         `json:"name"`

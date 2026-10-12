@@ -4,6 +4,10 @@
 逐个追踪请求、持久化事件、组件、Action 和后续上下文，请阅读
 [P0 交互教学指南](learning_zh.md)。页面 Learning lab 提供对应事件检查点和异常练习。
 
+九个场景均可开启每轮 Deep thinking。固定的 Mock 规划摘要使用独立思考通道，
+不会创建额外 Surface 或混入正文/后续历史；交互和 Trace 说明见
+[思考输出指南](thinking_zh.md)。
+
 ---
 
 ## 一、架构设计哲学与核心不变量 (Core Invariants)

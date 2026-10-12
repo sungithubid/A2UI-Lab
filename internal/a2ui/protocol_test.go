@@ -44,6 +44,28 @@ func TestMalformedProtocol(t *testing.T) {
 	}
 }
 
+func TestThinkingPresentationNeverCreatesProtocolComponents(t *testing.T) {
+	var semantic presentation.Presenter
+	var adapter Presenter
+	inputs := []event.Message{
+		event.New("model.reasoning_started", event.ReasoningStarted{MessageID: "t", Source: "mock_summary"}),
+		event.New("model.reasoning_delta", event.TextDelta{MessageID: "t", Text: "Summary"}),
+		event.New("model.reasoning_completed", event.ReasoningCompleted{MessageID: "t"}),
+	}
+	for _, input := range inputs {
+		views := semantic.Present(input)
+		if len(views) != 1 {
+			t.Fatal("missing reasoning presentation")
+		}
+		if len(adapter.Render(views[0])) != 0 {
+			t.Fatal("thinking leaked into A2UI")
+		}
+	}
+	if len(adapter.children) != 0 {
+		t.Fatal("thinking changed the protocol tree")
+	}
+}
+
 func TestChoiceProtocolRejectsIncompleteAndInvalidSelections(t *testing.T) {
 	question := event.ChoiceRequired{Title: "Choose", Description: "Analysis complete", Options: []event.ChoiceOption{{ID: "first", Title: "First", Description: "Incremental", Recommended: true}, {ID: "second", Title: "Second", Description: "Rebuild"}}, AllowCustom: true, CustomMaxLength: 500}
 	for _, change := range []func(*Component){

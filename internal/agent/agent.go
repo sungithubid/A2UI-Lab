@@ -7,10 +7,11 @@ import (
 )
 
 type Request struct {
-	Prompt     string        `json:"prompt"`
-	ScenarioID string        `json:"scenarioId"`
-	Messages   []ChatMessage `json:"messages"`
-	UIContext  []UIContext   `json:"uiContext"`
+	Prompt       string        `json:"prompt"`
+	ScenarioID   string        `json:"scenarioId"`
+	DeepThinking bool          `json:"deepThinking"`
+	Messages     []ChatMessage `json:"messages"`
+	UIContext    []UIContext   `json:"uiContext"`
 }
 
 // Application-owned context, not a provider-specific API or UI component tree.

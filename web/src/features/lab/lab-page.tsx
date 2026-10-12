@@ -6,10 +6,12 @@ import { FlaskConical, Play } from 'lucide-react'
 import { api, required } from '@/lib/api'
 import { Button } from '@/components/ui/button'
 import { Experiment } from './experiment'
+import { DeepThinkingToggle } from './deep-thinking-toggle'
 export function LabPage() {
   const client = useQueryClient(),
     [id, setID] = useState(''),
     [confirmAll, setConfirmAll] = useState(false),
+    [deepThinking, setDeepThinking] = useState(false),
     [scenario, setScenario] =
       useState<components['schemas']['Create']['scenarioId']>('server-health'),
     [prompt, setPrompt] = useState('Analyze server health')
@@ -23,7 +25,10 @@ export function LabPage() {
   })
   const create = useMutation({
     mutationFn: async () =>
-      required((await api.POST('/api/runs', { body: { prompt, scenarioId: scenario } })).data),
+      required(
+        (await api.POST('/api/runs', { body: { prompt, scenarioId: scenario, deepThinking } }))
+          .data,
+      ),
     onSuccess: (r) => {
       setID(r.id)
       void client.invalidateQueries({ queryKey: ['runs'] })
@@ -115,6 +120,12 @@ export function LabPage() {
               required
             />
           </label>
+          <DeepThinkingToggle
+            enabled={deepThinking}
+            onChange={setDeepThinking}
+            label="Deep thinking for new run"
+            disabled={busy}
+          />
           <Button type="submit" disabled={busy || !scenarios.data}>
             <Play />
             {create.isPending ? 'Starting…' : 'New run'}
@@ -177,7 +188,13 @@ export function LabPage() {
         </p>
       )}
       {id ? (
-        <Experiment key={id} id={id} onRun={setID} />
+        <Experiment
+          key={id}
+          id={id}
+          onRun={setID}
+          deepThinking={deepThinking}
+          onDeepThinking={setDeepThinking}
+        />
       ) : (
         <section className="welcome">
           <FlaskConical size={44} />

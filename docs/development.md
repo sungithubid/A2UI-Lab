@@ -41,3 +41,9 @@ Start P0 onboarding with [the interaction teaching guide](learning.md)
 to its implementation files. Add a Learning lab recipe when adding a scenario; its
 typed keys must match the generated Create scenario union. Keep exercises on the
 existing lifecycle/Action APIs rather than introducing a parallel debug backend.
+
+Optional thinking emits model.reasoning_started/delta/completed with a unique phase
+messageId and a displayable source label. Add provider-specific reasoning options
+only inside a future adapter, not frontend-generated provider requests. Never mix
+thinking into answer text or historical messages. See [the contract](thinking.md)
+([中文](thinking_zh.md)) before implementing a real-model summary adapter.
